@@ -191,7 +191,7 @@ main (int argc, char *argv[])
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! decodebin async-handling=false message-forward=true !  pulsesink async=false )"); //Works but randomly break after a few stream switch
         
         // Works flawlessly
-        "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec !  pulsesink async=false )");
+        "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec !  alsasink async=false )");
         
         // autoaudiosink sync property doesnt seem to work. Sample queues up in appsrc.
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! autoaudiosink sync=true )"); 

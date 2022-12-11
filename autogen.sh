@@ -1,3 +1,13 @@
+ENABLE_RPI=0
+i=1;
+for arg in "$@" 
+do
+    if [ $arg == "--enable-rpi" ]; then
+        ENABLE_RPI=1
+    fi
+    i=$((i + 1));
+done
+
 aclocal
 autoconf
 automake --add-missing
@@ -17,6 +27,8 @@ git -C gstreamer pull 2> /dev/null || git clone -b 1.21.3 https://gitlab.freedes
 cd gstreamer
 rm -rf build
 
+
+GST_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 # Add tinyalsa fallback subproject
 echo "[wrap-git]" > subprojects/tinyalsa.wrap
 echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
@@ -42,8 +54,12 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 #   --pkg-config-path=/home/quedale/git/OnvifRtspLauncher/subprojects/gstreamer/build/dist/lib/x86_64-linux-gnu/pkgconfig \
 #   --prefix=$(pwd)/build/dist
 
-# Customized build <4K file
-meson build \
+if [ $ENABLE_RPI -eq 0 ]; then
+  LIBAV="-Dlibav=enabled"
+fi
+
+# Customized build ~3K file
+meson setup build \
   --buildtype=release \
   --strip \
   --default-library=static \
@@ -54,11 +70,10 @@ meson build \
   -Dbad=enabled \
   -Dugly=enabled \
   -Dgpl=enabled \
-  -Dlibav=enabled \
+  $LIBAV \
   -Drtsp_server=enabled \
   -Dgst-plugins-base:app=enabled \
   -Dgst-plugins-base:typefind=enabled \
-  -Dgst-plugins-base:volume=enabled \
   -Dgst-plugins-base:audiotestsrc=enabled \
   -Dgst-plugins-base:videotestsrc=enabled \
   -Dgst-plugins-base:playback=enabled \
@@ -80,7 +95,6 @@ meson build \
   -Dgst-plugins-good:udp=enabled \
   -Dgst-plugins-good:autodetect=enabled \
   -Dgst-plugins-good:pulse=enabled \
-  -Dgst-plugins-good:cairo=enabled \
   -Dgst-plugins-good:oss=enabled \
   -Dgst-plugins-good:oss4=enabled \
   -Dgst-plugins-good:interleave=enabled \
@@ -96,12 +110,43 @@ meson build \
   -Dgst-plugins-bad:mpegtsmux=enabled \
   -Dgst-plugins-bad:mpegtsdemux=enabled \
   -Dgst-plugins-ugly:x264=enabled \
-  --pkg-config-path=/home/quedale/git/OnvifRtspLauncher/subprojects/gstreamer/build/dist/lib/x86_64-linux-gnu/pkgconfig \
-  --prefix=$(pwd)/build/dist
+  --prefix=$GST_DIR/build/dist \
+  --libdir=lib
 
 meson compile -C build
 meson install -C build
 
 
+if [ $ENABLE_RPI -eq 1 ]; then
+  # OMX is build sperately, because it depends on a build variable defined in the shared build.
+  #   So we build both to get the static ones.
+  rm -rf build_omx
+
+  PKG_CONFIG_PATH=$GST_DIR/build/dist/lib/pkgconfig \
+  meson setup build_omx \
+    --buildtype=release \
+    --strip \
+    --default-library=both \
+    -Dauto_features=disabled \
+    -Domx=enabled \
+    -Dgst-omx:header_path=/opt/vc/include/IL \
+    -Dgst-omx:target=rpi \
+    -Dgst-plugins-good:rpicamsrc=enabled \
+    --prefix=$GST_DIR/build_omx/dist \
+    --libdir=lib
+
+  meson compile -C build_omx
+  meson install -C build_omx
+
+
+  #Remove shared lib to force static resolution to .a
+  rm -rf $GST_DIR/build_omx/dist/lib/*.so
+  rm -rf $GST_DIR/build_omx/dist/lib/gstreamer-1.0/*.so
+fi
+
 #Remove shared lib to force static resolution to .a
-rm -rf $(pwd)/build/dist/lib/x86_64-linux-gnu/*.so
+#We used the shared libs to recompile gst-omx plugins
+rm -rf $GST_DIR/build/dist/lib/*.so
+rm -rf $GST_DIR/build/dist/lib/gstreamer-1.0/*.so
+
+./configure $@
