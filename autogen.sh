@@ -11,9 +11,10 @@ done
 aclocal
 autoconf
 automake --add-missing
+SCRT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 
-mkdir -p subprojects
-cd subprojects
+mkdir -p $SCRT_DIR/subprojects
+cd $SCRT_DIR/subprojects
 
 # wget https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.22.1.tar.bz2
 # tar xvfj v4l-utils-1.22.1.tar.bz2
@@ -28,7 +29,7 @@ cd gstreamer
 rm -rf build
 
 
-GST_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+GST_DIR=$(pwd)
 # Add tinyalsa fallback subproject
 echo "[wrap-git]" > subprojects/tinyalsa.wrap
 echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
@@ -58,7 +59,7 @@ if [ $ENABLE_RPI -eq 0 ]; then
   LIBAV="-Dlibav=enabled"
 fi
 
-# Customized build ~3K file
+# Customized build <3K file
 meson setup build \
   --buildtype=release \
   --strip \
@@ -87,6 +88,7 @@ meson setup build \
   -Dgst-plugins-base:overlaycomposition=enabled \
   -Dgst-plugins-base:audioresample=enabled \
   -Dgst-plugins-base:audioconvert=enabled \
+  -Dgst-plugins-base:volume=enabled \
   -Dgst-plugins-good:v4l2=enabled \
   -Dgst-plugins-good:rtsp=enabled \
   -Dgst-plugins-good:rtp=enabled \
@@ -149,4 +151,4 @@ fi
 rm -rf $GST_DIR/build/dist/lib/*.so
 rm -rf $GST_DIR/build/dist/lib/gstreamer-1.0/*.so
 
-./configure $@
+$SCRT_DIR/configure $@

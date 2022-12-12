@@ -16,9 +16,9 @@
  * Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
-// #ifndef _GNU_SOURCE
-// #define _GNU_SOURCE 1
-// #endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 
 #include <gst/gst.h>
 #include <gst/rtsp-server/rtsp-onvif-server.h>
@@ -30,6 +30,7 @@
 #include <stdio.h>
 // #include "onvifinitstaticserverplugins.h"
 #include "onvifinitstaticplugins.h"
+#include "sink-retriever.h"
 
 const char *argp_program_version = "0.0";
 const char *argp_program_bug_address = "<your@email.address>";
@@ -148,8 +149,10 @@ main (int argc, char *argv[])
 
     onvif_init_static_plugins();
 
-    loop = g_main_loop_new (NULL, FALSE);
+    SupportedAudioSinkTypes audio_sink_type;
+    audio_sink_type = retrieve_audiosink();
 
+    loop = g_main_loop_new (NULL, FALSE);
     /* create a server instance */
     server = gst_rtsp_onvif_server_new ();
 
@@ -158,22 +161,51 @@ main (int argc, char *argv[])
     mounts = gst_rtsp_server_get_mount_points (server);
 
     if(!strcmp(arguments.vdev,"test")){
-        asprintf(&strbin, "( videotestsrc ! video/x-raw,width=%i,height=%i,framerate=%i/1,format=YUY2 ! videoconvert ! %s ! rtph264pay name=pay0 pt=96 audiotestsrc wave=ticks apply-tick-ramp=true tick-interval=400000000 ! mulawenc ! rtppcmupay name=pay1 )",
+        if(!asprintf(&strbin, "( videotestsrc ! video/x-raw,width=%i,height=%i,framerate=%i/1,format=YUY2 ! videoconvert ! %s ! rtph264pay name=pay0 pt=96 audiotestsrc wave=ticks apply-tick-ramp=true tick-interval=400000000 ! mulawenc ! rtppcmupay name=pay1 )",
             arguments.width,
             arguments.height,
             arguments.fps,
-            arguments.encoder); 
+            arguments.encoder)){
+            g_critical("Unable to construct launch");
+            return -1;
+        } 
     } else {
-        asprintf(&strbin, "( v4l2src device=%s ! video/x-raw,width=%i,height=%i,framerate=%i/1,format=YUY2 ! queue ! videoconvert ! %s ! rtph264pay name=pay0 pt=96 audiotestsrc wave=ticks apply-tick-ramp=true tick-interval=400000000 ! mulawenc ! rtppcmupay name=pay1 )",
+        if(!asprintf(&strbin, "( v4l2src device=%s ! video/x-raw,width=%i,height=%i,framerate=%i/1,format=YUY2 ! queue ! videoconvert ! %s ! rtph264pay name=pay0 pt=96 audiotestsrc wave=ticks apply-tick-ramp=true tick-interval=400000000 ! mulawenc ! rtppcmupay name=pay1 )",
             arguments.vdev,
             arguments.width,
             arguments.height,
             arguments.fps,
-            arguments.encoder);    
+            arguments.encoder)){
+            g_critical("Unable to construct lauch");
+            return -1;
+        } 
     }
 
-    printf("strbin : %s\n",strbin);
+    printf("Launch : %s\n",strbin);
     
+    char * audiosink;
+    switch(audio_sink_type){
+        case ONVIF_PULSE:
+            audiosink = "pulsesink";
+            break;
+        case ONVIF_ASLA:
+            audiosink = "alsasink";
+            break;
+        case ONVIF_NA:
+        default:
+            audiosink = "fakesink";
+            g_warning("No valid audio sink found for backchannel!");
+    }
+
+    //TODO use switchbin to handle LAW and AAC
+    char * backchannel_lauch;
+    if(!asprintf(&backchannel_lauch, "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! %s async=false )",
+        audiosink)){
+        g_critical("Unable to construct backchannel");
+        return -2;
+    } 
+
+    printf("Backchannel : %s\n",backchannel_lauch);
     /* make a media factory for a test stream. The default media factory can use
     * gst-launch syntax to create pipelines.
     * any launch line works as long as it contains elements named pay%d. Each
@@ -182,6 +214,8 @@ main (int argc, char *argv[])
     gst_rtsp_media_factory_set_launch (factory,strbin);
     gst_rtsp_onvif_media_factory_set_backchannel_launch
         (GST_RTSP_ONVIF_MEDIA_FACTORY (factory),
+        backchannel_lauch);
+
         // Test backpipe
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! fakesink async=false )");
 
@@ -191,8 +225,8 @@ main (int argc, char *argv[])
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! decodebin async-handling=false message-forward=true !  pulsesink async=false )"); //Works but randomly break after a few stream switch
         
         // Works flawlessly
-        "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec !  alsasink async=false )");
-        
+        // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! pulsesink async=false )");
+
         // autoaudiosink sync property doesnt seem to work. Sample queues up in appsrc.
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! autoaudiosink sync=true )"); 
     gst_rtsp_media_factory_set_shared (factory, TRUE);
