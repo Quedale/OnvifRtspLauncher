@@ -8,13 +8,20 @@ do
     i=$((i + 1));
 done
 
+#Save current working directory to run configure in
+WORK_DIR=$(pwd)
+
+#Get project root directory based on autogen.sh file location
+SCRT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+cd $SCRT_DIR
+
+#Initialize project
 aclocal
 autoconf
 automake --add-missing
-SCRT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
 
-mkdir -p $SCRT_DIR/subprojects
-cd $SCRT_DIR/subprojects
+mkdir -p subprojects
+cd subprojects
 
 # wget https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.22.1.tar.bz2
 # tar xvfj v4l-utils-1.22.1.tar.bz2
@@ -55,23 +62,65 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 #   --pkg-config-path=/home/quedale/git/OnvifRtspLauncher/subprojects/gstreamer/build/dist/lib/x86_64-linux-gnu/pkgconfig \
 #   --prefix=$(pwd)/build/dist
 
+MESON_PARAMS=""
 if [ $ENABLE_RPI -eq 0 ]; then
-  LIBAV="-Dlibav=enabled"
+  MESON_PARAMS="$MESON_PARAMS -Dlibav=enabled"
+elif [ $ENABLE_RPI -eq 1 ]; then
+  MESON_PARAMS="$MESON_PARAMS -DFFmpeg:omx=enabled"
 fi
 
-# Customized build <3K file
+# Force disable subproject features
+# MESON_PARAMS="$MESON_PARAMS -Dcairo:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dfdk-aac:build-programs=disabled"
+MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false" #This one did shrink the build
+# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_debug=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_assert=false" # remove for stable build
+# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_checks=false" # remove for stable build
+# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:docs=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:tools=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:docs=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:examples=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:tools=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:examples=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:doc=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:glib-checks=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:glib-asserts=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:extra-checks=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:examples=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:doc=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tools=disabled"
+# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffmpeg=disabled"
+# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffplay=disabled"
+# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffprobe=disabled"
+MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dlibdrm:man-pages=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dopenh264:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dpcre2-10:tests=false"
+# MESON_PARAMS="$MESON_PARAMS -Dpixman:tests=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:docs=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:examples=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:utils=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dtools=disabled"
+# MESON_PARAMS="$MESON_PARAMS -Dexamples=disabled"
+MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
+
+# Customized build <2K file
 meson setup build \
   --buildtype=release \
   --strip \
   --default-library=static \
   --wrap-mode=forcefallback \
   -Dauto_features=disabled \
+  $MESON_PARAMS \
   -Dbase=enabled \
   -Dgood=enabled \
   -Dbad=enabled \
   -Dugly=enabled \
   -Dgpl=enabled \
-  $LIBAV \
   -Drtsp_server=enabled \
   -Dgst-plugins-base:app=enabled \
   -Dgst-plugins-base:typefind=enabled \
@@ -151,4 +200,5 @@ fi
 rm -rf $GST_DIR/build/dist/lib/*.so
 rm -rf $GST_DIR/build/dist/lib/gstreamer-1.0/*.so
 
+cd $WORK_DIR
 $SCRT_DIR/configure $@

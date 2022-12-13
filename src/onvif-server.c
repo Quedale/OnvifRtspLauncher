@@ -183,13 +183,17 @@ main (int argc, char *argv[])
 
     printf("Launch : %s\n",strbin);
     
+    // TODO handle sink override
     char * audiosink;
     switch(audio_sink_type){
         case ONVIF_PULSE:
-            audiosink = "pulsesink";
+            audiosink = "pulsesink async=false";
             break;
         case ONVIF_ASLA:
-            audiosink = "alsasink";
+            audiosink = "alsasink async=false";
+            break;
+        case ONVIF_OMX:
+            audiosink = "omxhdmiaudiosink";
             break;
         case ONVIF_NA:
         default:
@@ -199,7 +203,7 @@ main (int argc, char *argv[])
 
     //TODO use switchbin to handle LAW and AAC
     char * backchannel_lauch;
-    if(!asprintf(&backchannel_lauch, "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! %s async=false )",
+    if(!asprintf(&backchannel_lauch, "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! %s )",
         audiosink)){
         g_critical("Unable to construct backchannel");
         return -2;

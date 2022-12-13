@@ -16,6 +16,8 @@ void child_added_callback (GstChildProxy * self,
         g_info("Detector found pulse sink\n");
     } else if(!strcmp(name,"detectaudiosink-actual-sink-alsa")){
         ret_val->type = ONVIF_ASLA;
+    } else if(!strcmp(name,"detectaudiosink-actual-sink-omxhdmiaudio")){
+        ret_val->type = ONVIF_OMX;
     } else if(!strcmp(name,"fake-audio-sink")){
         g_info("Detector ignore fake sink.");
     } else {
