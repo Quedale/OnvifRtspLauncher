@@ -19,6 +19,7 @@ cd $SCRT_DIR
 aclocal
 autoconf
 automake --add-missing
+autoreconf -i
 
 mkdir -p subprojects
 cd subprojects
