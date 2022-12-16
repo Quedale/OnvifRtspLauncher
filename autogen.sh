@@ -1,8 +1,11 @@
 ENABLE_RPI=0
+ENABLE_LIBAV=0
 i=1;
 for arg in "$@" 
 do
-    if [ $arg == "--enable-rpi" ]; then
+    if [ $arg == "--enable-libav" ]; then
+        ENABLE_LIBAV=1
+    else if [ $arg == "--enable-rpi" ]; then
         ENABLE_RPI=1
     fi
     i=$((i + 1));
@@ -64,9 +67,12 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 #   --prefix=$(pwd)/build/dist
 
 MESON_PARAMS=""
-if [ $ENABLE_RPI -eq 0 ]; then
+# Im not sure how useful libav really is, but fails to compile on rpi
+if [ $ENABLE_LIBAV -eq 0 ]; then
   MESON_PARAMS="$MESON_PARAMS -Dlibav=enabled"
-elif [ $ENABLE_RPI -eq 1 ]; then
+fi
+
+if [ $ENABLE_RPI -eq 1 ]; then
   MESON_PARAMS="$MESON_PARAMS -DFFmpeg:omx=enabled"
 fi
 

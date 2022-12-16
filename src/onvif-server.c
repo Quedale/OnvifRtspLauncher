@@ -31,6 +31,7 @@
 // #include "onvifinitstaticserverplugins.h"
 #include "onvifinitstaticplugins.h"
 #include "sink-retriever.h"
+#include "vencoder-retriever.h"
 
 const char *argp_program_version = "0.0";
 const char *argp_program_bug_address = "<your@email.address>";
@@ -121,20 +122,35 @@ main (int argc, char *argv[])
     struct arguments arguments;
     char *strbin;
 
+    gst_init (&argc, &argv);
+
+    onvif_init_static_plugins();
+
     arguments.vdev = "/dev/video0";
     arguments.adev = NULL;
     arguments.width = 640;
     arguments.height = 480;
     arguments.fps = 10;
     arguments.format = "YUY2";
-    arguments.encoder = "x264enc";
+    arguments.encoder = NULL;
     arguments.mount = "h264";
     arguments.port = 8554;
 
     /* Default values. */
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
-    printf("test\n");
+    g_warning("test\n");
+
+    if(!arguments.encoder){
+        arguments.encoder = retrieve_videoencoder();
+        if(!arguments.encoder){
+            g_critical("No functional video encoder found.");
+            return 1;
+        }
+    } else {
+        g_warning("Video Encoder override '%s'",arguments.encoder);
+    }
+
     printf ("vdev : %s\n", arguments.vdev);
     printf ("adev : %s\n", arguments.adev);
     printf ("width : %i\n", arguments.width);
@@ -143,11 +159,6 @@ main (int argc, char *argv[])
     printf ("encoder : %s\n", arguments.encoder);
     printf ("mount : %s\n", arguments.mount);
     printf ("port : %i\n", arguments.port);
-
-
-    gst_init (&argc, &argv);
-
-    onvif_init_static_plugins();
 
     SupportedAudioSinkTypes audio_sink_type;
     audio_sink_type = retrieve_audiosink();
@@ -233,7 +244,7 @@ main (int argc, char *argv[])
 
         // autoaudiosink sync property doesnt seem to work. Sample queues up in appsrc.
         // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! autoaudiosink sync=true )"); 
-    gst_rtsp_media_factory_set_shared (factory, TRUE);
+    gst_rtsp_media_factory_set_shared (factory, FALSE);
     gst_rtsp_media_factory_set_media_gtype (factory, GST_TYPE_RTSP_ONVIF_MEDIA);
 
 

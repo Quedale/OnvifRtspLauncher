@@ -194,8 +194,8 @@ GST_PLUGIN_STATIC_DECLARE(asf);
 // GST_PLUGIN_STATIC_DECLARE(dvdsub); gstdvdsub
 // GST_PLUGIN_STATIC_DECLARE(realmedia); gstrealmedia
 GST_PLUGIN_STATIC_DECLARE(x264);
-#ifndef ENABLERPI
 GST_PLUGIN_STATIC_DECLARE(pulseaudio);
+#ifdef ENABLELIBAV
 GST_PLUGIN_STATIC_DECLARE(libav);
 #endif
 // GST_PLUGIN_STATIC_DECLARE(rtspclientsink);
@@ -402,8 +402,8 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(dvdsub); gstdvdsub
     // GST_PLUGIN_STATIC_REGISTER(realmedia); gstrealmedia
     GST_PLUGIN_STATIC_REGISTER(x264);
-#ifndef ENABLERPI
     GST_PLUGIN_STATIC_REGISTER(pulseaudio);
+#ifdef ENABLELIBAV
     GST_PLUGIN_STATIC_REGISTER(libav);
 #endif
     // GST_PLUGIN_STATIC_REGISTER(rtspclientsink);

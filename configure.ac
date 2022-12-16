@@ -26,6 +26,21 @@ AM_COND_IF([RPICOND],[
     AC_SUBST(EXT_CFLAGS, -DENABLERPI)
 ])
 
+AC_ARG_ENABLE(libav,
+    [AS_HELP_STRING([--enable-rpi],[Enable libav gstreamer plugin. @<:@default=no@:>@.])],
+    [case "${enableval}" in
+        yes) targetlibav=yes ;;
+        no)  targetlibav=no ;;
+        true) targetlibav=yes ;;
+        false)  targetlibav=no ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+        esac],
+    [targetlibav="no"])
+AM_CONDITIONAL([LIBAVCOND], [test x$targetlibav = xyes])
+AM_COND_IF([LIBAVCOND],[
+    AC_SUBST(EXT_CFLAGS, -DENABLELIBAV)
+])
+
 AC_SUBST(PKG_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/pkgconfig')
 AC_SUBST(PKG_GST_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig')
 AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH)')
