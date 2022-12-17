@@ -32,6 +32,7 @@
 #include "onvifinitstaticplugins.h"
 #include "sink-retriever.h"
 #include "vencoder-retriever.h"
+#include "onvif-server.h"
 
 const char *argp_program_version = "0.0";
 const char *argp_program_bug_address = "<your@email.address>";
@@ -112,6 +113,236 @@ char* itoa(int value, char* result, int base) {
     return result;
 }
 
+/* A simple factory to set up our replay bin */
+
+struct OnvifFactoryPrivate
+{
+    GstRTSPOnvifMediaFactory parent;
+};
+
+G_DEFINE_TYPE_WITH_PRIVATE (OnvifFactory, custom_onvif_factory, GST_TYPE_RTSP_ONVIF_MEDIA_FACTORY);
+
+static void
+custom_onvif_factory_init (OnvifFactory * factory)
+{
+    g_warning("----------- custom_onvif_factory_init!----------\n");
+}
+
+//WIP doesnt work
+static GstElement *
+old_custom_onvif_factory_create_element (GstRTSPMediaFactory * factory,
+    const GstRTSPUrl * url)
+{
+    g_warning("----------- custom create!----------\n");
+    GstElement *ret = gst_bin_new ("pay0");
+    // GstElement * pipeline = gst_pipeline_new ("custom-pipeline");
+    GstElement * src = gst_element_factory_make ("v4l2src", "src");
+    GstElement * src_capsfilter = gst_element_factory_make ("capsfilter", "src_caps");
+    //video/x-raw, width=640, height=480, framerate=30/1
+    GstElement * vq = gst_element_factory_make ("queue", "vqueue");
+    // GstElement * venc = gst_element_factory_make ("v4l2h264enc", "venc");
+    GstElement * videoconvert = gst_element_factory_make ("videoconvert", "videoconvert");
+    GstElement * venc = gst_element_factory_make ("omxh264enc", "venc");
+    GstElement * venc_capsfilter = gst_element_factory_make ("capsfilter", "venc_caps");
+    //video/x-h264, width=640, height=480, framerate=30/1, format=YUY2
+    GstElement * hparse = gst_element_factory_make ("h264parse", "h264parse");
+    GstElement * hpay = gst_element_factory_make ("rtph264pay", "pay0");
+    
+    g_object_set(G_OBJECT(hpay), "pt", 96,NULL);
+    //extra-controls=\"controls, video_bitrate=300000, h264_level=4, h264_profile=4\"
+    // g_object_set(G_OBJECT(venc), "extra-controls", "controls, video_bitrate=300000, h264_level=4, h264_profile=4",NULL);
+
+    GstCaps* src_filtercaps = gst_caps_from_string("video/x-raw, width=640, height=480, framerate=10/1, format=YUY2");
+    g_object_set(G_OBJECT(src_capsfilter), "caps", src_filtercaps,NULL);
+
+    // GstCaps* venc_filtercaps = gst_caps_from_string("video/x-h264, profile=main, level=(string)4, framerate=30/1, format=YUY2");
+    // g_object_set(G_OBJECT(venc_capsfilter), "caps", venc_filtercaps,NULL);
+
+    g_object_set(G_OBJECT(src), "device", "/dev/video0",NULL);
+
+    //Validate elements
+    if (!ret || \
+        !src || \
+        !src_capsfilter || \
+        !vq || \
+        !videoconvert || \
+        !venc || \
+        /*!venc_capsfilter ||*/ \
+        !hparse || \
+        !hpay) {
+        g_printerr ("One of the elements wasn't created... Exiting\n");
+        return NULL;
+    }
+
+    //Add elements to pipeline
+    gst_bin_add_many (GST_BIN (ret), \
+        src, \
+        src_capsfilter, \
+        vq, \
+        videoconvert, \
+        venc, \
+        /*venc_capsfilter,*/ \
+        hparse, \
+        hpay, NULL);
+
+    //Link elements
+    if (!gst_element_link_many (src, \
+        src_capsfilter, \
+        vq, \
+        videoconvert, \
+        venc, \
+        /* venc_capsfilter,*/ \
+        hparse, \
+        hpay, NULL)){
+        g_warning ("Linking part (A)-2 Fail...");
+        return NULL;
+    }
+    return ret;
+
+}
+
+static GstElement *
+custom_onvif_factory_create_element (GstRTSPMediaFactory * factory, const GstRTSPUrl * url)
+{
+    GstElement *element;
+    GError *error = NULL;
+    gchar *launch;
+    GstRTSPContext *ctx = gst_rtsp_context_get_current ();
+
+  /* Behavior taken out GstRtspOnvifMediaFactory
+   * Except we handle v4l2src via an appsink/appsrc proxy
+   * This is to support v4l2h264enc single instance use
+   */
+
+    launch = gst_rtsp_media_factory_get_launch (factory);
+
+  /* we need a parse syntax */
+    if (launch == NULL)
+        goto no_launch;
+
+  /* parse the user provided launch line */
+    // element = old_custom_onvif_factory_create_element(factory,url);
+  element = gst_parse_launch_full (launch, NULL, GST_PARSE_FLAG_PLACE_IN_BIN, &error);
+    if (element == NULL)
+        goto parse_error;
+
+    g_free (launch);
+
+    if (error != NULL) {
+        /* a recoverable error was encountered */
+        GST_WARNING ("recoverable parsing error: %s", error->message);
+        g_error_free (error);
+    }
+
+  /* add backchannel pipeline part, if requested */
+    if (gst_rtsp_onvif_media_factory_requires_backchannel (factory, ctx)) {
+        GstRTSPOnvifMediaFactory *onvif_factory = GST_RTSP_ONVIF_MEDIA_FACTORY (factory);
+        GstElement *backchannel_bin;
+        GstElement *backchannel_depay;
+        GstPad *depay_pad, *depay_ghostpad;
+
+        launch = gst_rtsp_onvif_media_factory_get_backchannel_launch (onvif_factory);
+        if (launch == NULL)
+            goto no_launch_backchannel;
+
+        backchannel_bin = gst_parse_bin_from_description_full (launch, FALSE, NULL,
+            GST_PARSE_FLAG_PLACE_IN_BIN, &error);
+        if (backchannel_bin == NULL)
+            goto parse_error_backchannel;
+
+        g_free (launch);
+
+        if (error != NULL) {
+            /* a recoverable error was encountered */
+            GST_WARNING ("recoverable parsing error: %s", error->message);
+            g_error_free (error);
+        }
+
+        gst_object_set_name (GST_OBJECT (backchannel_bin), "onvif-backchannel");
+
+        backchannel_depay = gst_bin_get_by_name (GST_BIN (backchannel_bin), "depay_backchannel");
+        if (!backchannel_depay) {
+            gst_object_unref (backchannel_bin);
+            goto wrongly_formatted_backchannel_bin;
+        }
+
+        depay_pad = gst_element_get_static_pad (backchannel_depay, "sink");
+        if (!depay_pad) {
+            gst_object_unref (backchannel_depay);
+            gst_object_unref (backchannel_bin);
+            goto wrongly_formatted_backchannel_bin;
+        }
+
+        depay_ghostpad = gst_ghost_pad_new ("sink", depay_pad);
+        gst_element_add_pad (backchannel_bin, depay_ghostpad);
+
+        gst_bin_add (GST_BIN (element), backchannel_bin);
+    }
+
+    return element;
+
+  /* ERRORS */
+no_launch:
+    {
+        g_critical ("no launch line specified");
+        g_free (launch);
+        return NULL;
+    }
+parse_error:
+    {
+        g_critical ("could not parse launch syntax (%s): %s", launch,
+            (error ? error->message : "unknown reason"));
+        if (error)
+            g_error_free (error);
+        g_free (launch);
+        return NULL;
+    }
+no_launch_backchannel:
+    {
+        g_critical ("no backchannel launch line specified");
+        gst_object_unref (element);
+        return NULL;
+    }
+parse_error_backchannel:
+    {
+        g_critical ("could not parse backchannel launch syntax (%s): %s", launch,
+            (error ? error->message : "unknown reason"));
+        if (error)
+            g_error_free (error);
+        g_free (launch);
+        gst_object_unref (element);
+        return NULL;
+    }
+
+wrongly_formatted_backchannel_bin:
+    {
+        g_critical ("invalidly formatted backchannel bin");
+
+        gst_object_unref (element);
+        return NULL;
+    }
+}
+
+
+static void
+custom_onvif_factory_class_init (OnvifFactoryClass * klass)
+{
+    g_warning("----------- custom_onvif_factory_class_init --------------");
+    GstRTSPMediaFactoryClass *mf_class = GST_RTSP_MEDIA_FACTORY_CLASS (klass);
+    mf_class->create_element = custom_onvif_factory_create_element;
+}
+
+static GstRTSPMediaFactory *
+custom_onvif_factory_new (void)
+{
+    g_warning("----------- custom new --------------");
+    GstRTSPMediaFactory *result;
+
+    result = g_object_new (custom_onvif_factory_get_type (), NULL);
+
+    return result;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -159,7 +390,8 @@ main (int argc, char *argv[])
     printf ("encoder : %s\n", arguments.encoder);
     printf ("mount : %s\n", arguments.mount);
     printf ("port : %i\n", arguments.port);
-
+    printf ("fps : %i\n", arguments.fps);
+    
     SupportedAudioSinkTypes audio_sink_type;
     audio_sink_type = retrieve_audiosink();
 
@@ -225,6 +457,9 @@ main (int argc, char *argv[])
     * gst-launch syntax to create pipelines.
     * any launch line works as long as it contains elements named pay%d. Each
     * element with pay%d names will be a stream */
+    
+    //WIP
+    // factory = custom_onvif_factory_new ();
     factory = gst_rtsp_onvif_media_factory_new ();
     gst_rtsp_media_factory_set_launch (factory,strbin);
     gst_rtsp_onvif_media_factory_set_backchannel_launch
