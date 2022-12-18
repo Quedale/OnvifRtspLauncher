@@ -178,7 +178,8 @@ retrieve_videoencoder(void){
 #endif
     ret = test_videoencoder("v4l2h264enc");
     if(ret){
-        return "v4l2h264enc extra-controls=\"controls, video_bitrate=300000, h264_level=4, h264_profile=4\" ! video/x-h264, profile=main, level=(string)5";
+        // return "v4l2h264enc extra-controls=\"controls, video_bitrate=300000, h264_level=4, h264_profile=4\" ! video/x-h264, profile=main, level=(string)5";
+         return "v4l2h264enc";
     }
 
     ret = test_videoencoder("nvh264enc");
