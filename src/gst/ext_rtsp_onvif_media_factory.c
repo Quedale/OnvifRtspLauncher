@@ -1,7 +1,7 @@
 #include "ext_rtsp_onvif_media_factory.h"
 
-GST_DEBUG_CATEGORY_STATIC (ext_onvif_server_debug);
-#define GST_CAT_DEFAULT (ext_onvif_server_debug)
+GST_DEBUG_CATEGORY_STATIC (ext_onvif_server_factory_debug);
+#define GST_CAT_DEFAULT (ext_onvif_server_factory_debug)
 
 
 struct ExtRTSPOnvifMediaFactoryPrivate
@@ -404,8 +404,8 @@ ext_rtsp_onvif_media_factory_class_init (ExtRTSPOnvifMediaFactoryClass * klass)
 GstRTSPMediaFactory *
 ext_rtsp_onvif_media_factory_new (void)
 {
-    GST_DEBUG_CATEGORY_INIT (ext_onvif_server_debug, "ext-onvif-server", 0, "Extended ONVIF server");
-    gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
+    GST_DEBUG_CATEGORY_INIT (ext_onvif_server_factory_debug, "ext-onvif-factory", 0, "Extended ONVIF Factory");
+    gst_debug_set_threshold_for_name ("ext-onvif-factory", GST_LEVEL_LOG);
     GST_INFO ("Creating new ExtRTSPOnvifMediaFactory");
     GstRTSPMediaFactory *result;
 

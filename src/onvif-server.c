@@ -130,9 +130,10 @@ main (int argc, char *argv[])
 
     gst_init (&argc, &argv);
 
-    GST_DEBUG_CATEGORY_INIT (ext_onvif_server_debug, "ext-onvif-server", 0, "Extended ONVIF server");
-    
     onvif_init_static_plugins();
+
+    GST_DEBUG_CATEGORY_INIT (ext_onvif_server_debug, "ext-onvif-server", 0, "Extended ONVIF server");
+    gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
 
     arguments.vdev = "/dev/video0";
     arguments.adev = NULL;
@@ -158,16 +159,16 @@ main (int argc, char *argv[])
         GST_WARNING("Video Encoder override '%s'",arguments.encoder);
     }
 
-    GST_DEBUG ("vdev : %s\n", arguments.vdev);
-    GST_DEBUG ("adev : %s\n", arguments.adev);
-    GST_DEBUG ("width : %i\n", arguments.width);
-    GST_DEBUG ("height : %i\n", arguments.height);
-    GST_DEBUG ("format : %s\n", arguments.format);
-    GST_DEBUG ("encoder : %s\n", arguments.encoder);
-    GST_DEBUG ("mount : %s\n", arguments.mount);
-    GST_DEBUG ("port : %i\n", arguments.port);
-    GST_DEBUG ("fps : %i\n", arguments.fps);
-    
+    GST_DEBUG ("vdev : %s", arguments.vdev);
+    GST_DEBUG ("adev : %s", arguments.adev);
+    GST_DEBUG ("width : %i", arguments.width);
+    GST_DEBUG ("height : %i", arguments.height);
+    GST_DEBUG ("format : %s", arguments.format);
+    GST_DEBUG ("encoder : %s", arguments.encoder);
+    GST_DEBUG ("mount : %s", arguments.mount);
+    GST_DEBUG ("port : %i", arguments.port);
+    GST_DEBUG ("fps : %i", arguments.fps);
+
     SupportedAudioSinkTypes audio_sink_type;
     audio_sink_type = retrieve_audiosink();
 
@@ -219,8 +220,7 @@ main (int argc, char *argv[])
     // autoaudiosink sync property doesnt seem to work. Sample queues up in appsrc.
     // "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! autoaudiosink sync=true )"); 
     
-    GST_DEBUG("Backchannel : %s\n",backchannel_lauch);
-    
+    GST_DEBUG("Backchannel : %s",backchannel_lauch);
     factory = ext_rtsp_onvif_media_factory_new ();
     
     //TODO handle format
@@ -255,7 +255,7 @@ main (int argc, char *argv[])
     gst_rtsp_server_attach (server, NULL);
     
     /* start serving */
-    GST_DEBUG ("stream ready at rtsp://%s:%s/%s\n",serviceaddr,serviceport,arguments.mount);
+    GST_DEBUG ("stream ready at rtsp://%s:%s/%s",serviceaddr,serviceport,arguments.mount);
     g_main_loop_run (loop);
 
     return 0;
