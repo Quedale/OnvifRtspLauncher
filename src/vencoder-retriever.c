@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include "vencoder-retriever.h"
 
+GST_DEBUG_CATEGORY_STATIC (ext_vencoder_debug);
+#define GST_CAT_DEFAULT (ext_vencoder_debug)
+
 typedef struct {
     int error;
 } VideoRetValue;
@@ -12,14 +15,14 @@ cb_message (GstBus     *bus,
             gpointer    user_data)
 {
   VideoRetValue *ret = (VideoRetValue *) user_data;
-    g_warning("message...\n");
+    GST_ERROR("message..");
   switch (GST_MESSAGE_TYPE (message)) {
     case GST_MESSAGE_ERROR:
-      g_print ("we received an error!\n");
+      GST_DEBUG ("we received an error!");
         ret->error=1;
       break;
     case GST_MESSAGE_EOS:
-      g_print ("we reached EOS\n");
+      GST_DEBUG ("we reached EOS");
        ret->error=1;
       break;
     default:
@@ -34,9 +37,9 @@ state_changed_cb (GstBus * bus, GstMessage * msg, gpointer user_data)
     GstState old_state, new_state, pending_state;
     gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
     if(new_state == GST_STATE_PLAYING){
-        printf("SUCCESS!!!\n");
+        GST_DEBUG("SUCCESS!!!");
     }
-    g_print ("State set to %s\n", gst_element_state_get_name (new_state));
+    GST_DEBUG ("State set to %s", gst_element_state_get_name (new_state));
 }
 
 int
@@ -45,15 +48,15 @@ message_handler (GstBus * bus, GstMessage * message, gpointer p)
     VideoRetValue *ret = (VideoRetValue *) p;
     switch(message->type){
         case GST_MESSAGE_EOS:
-            printf("msg : GST_MESSAGE_EOS\n");
+            GST_DEBUG("msg : GST_MESSAGE_EOS");
             ret->error = 1;
             break;
         case GST_MESSAGE_ERROR:
-            printf("msg : GST_MESSAGE_ERROR\n");
+            GST_DEBUG("msg : GST_MESSAGE_ERROR");
             ret->error = 1;
             break;
         case GST_MESSAGE_WARNING:
-            printf("msg : GST_MESSAGE_WARNING\n");
+            GST_DEBUG("msg : GST_MESSAGE_WARNING");
             GError *gerror;
             gchar *debug;
 
@@ -76,7 +79,7 @@ message_handler (GstBus * bus, GstMessage * message, gpointer p)
 int  
 test_videoencoder(char * encodername){
 
-    printf("Testing video encoder '%s'\n",encodername);
+    GST_DEBUG("Testing video encoder '%s'",encodername);
     //Create temporary pipeline to use AutoDetect element
     GstElement * pipeline = gst_pipeline_new ("audiotest-pipeline");
     GstElement * src = gst_element_factory_make ("videotestsrc", "src");
@@ -107,7 +110,7 @@ test_videoencoder(char * encodername){
         !encoder || \
         !capsfilter || \
         !sink) {
-        g_printerr ("One of the elements wasn't created... Exiting\n");
+        GST_WARNING ("One of the elements wasn't created... Exiting");
         return FALSE;
     }
 
@@ -123,7 +126,7 @@ test_videoencoder(char * encodername){
         encoder, \
         capsfilter, \
         sink, NULL)){
-        g_warning ("Linking part (A)-2 Fail...");
+        GST_WARNING ("Linking part (A)-2 Fail...");
         return FALSE;
     }
 
@@ -132,16 +135,16 @@ test_videoencoder(char * encodername){
     GstStateChangeReturn ret;
     ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        g_printerr ("Unable to set the pipeline to the playing state.\n");
+        GST_ERROR ("Unable to set the pipeline to the playing state.");
         gst_object_unref (pipeline);
         return FALSE;
     }
 
-    printf("poping message\n");
+    // GST_DEBUG("poping message");
     //TODO pop message and consume them until error or state changed to playing.
     // GstMessage * msg = gst_bus_poll (bus,GST_MESSAGE_WARNING, -1);
     // message_handler(bus,msg,ret_val);
-    // printf("poping message done\n");
+    // GST_DEBUG("poping message done");
     // return FALSE;
     //Caps are validated in a sperate thread.
     //Message signals are dispatched using main loop
@@ -149,7 +152,7 @@ test_videoencoder(char * encodername){
     //Stop pipeline
     ret = gst_element_set_state (pipeline, GST_STATE_READY);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        g_printerr ("Unable to set the pipeline to the ready state.\n");
+        GST_ERROR ("Unable to set the pipeline to the ready state.");
         gst_object_unref (pipeline);
         return FALSE;
     }
@@ -157,7 +160,7 @@ test_videoencoder(char * encodername){
     //Clean up
     ret = gst_element_set_state (pipeline, GST_STATE_NULL);
     if (ret == GST_STATE_CHANGE_FAILURE) {
-        g_printerr ("Unable to set the pipeline to the null state.\n");
+        GST_ERROR ("Unable to set the pipeline to the null state.");
         gst_object_unref (pipeline);
         return FALSE;
     }
@@ -169,7 +172,9 @@ test_videoencoder(char * encodername){
 char *  
 retrieve_videoencoder(void){
     int ret;
-
+    GST_DEBUG_CATEGORY_INIT (ext_vencoder_debug, "ext-venc", 0, "Extension to support v4l capabilities");
+    gst_debug_set_threshold_for_name ("ext-venc", GST_LEVEL_LOG);
+    
 #ifdef ENABLERPI
     ret = test_videoencoder("omxh264enc");
     if(ret){

@@ -1,4 +1,5 @@
 #include "ext_rtsp_onvif_media_factory.h"
+#include "../v4l/v4l2-device.h"
 
 GST_DEBUG_CATEGORY_STATIC (ext_onvif_server_factory_debug);
 #define GST_CAT_DEFAULT (ext_onvif_server_factory_debug)
@@ -28,7 +29,7 @@ ext_rtsp_onvif_media_factory_set_video_encoder (ExtRTSPOnvifMediaFactory *
     factory, const gchar * video_encoder)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_video_encoder : '%s'",video_encoder);
+    GST_LOG("'%s'",video_encoder);
 
     g_mutex_lock (&factory->priv->lock);
     g_free (factory->priv->video_encoder);
@@ -40,7 +41,7 @@ ext_rtsp_onvif_media_factory_set_video_device (ExtRTSPOnvifMediaFactory *
     factory, const gchar * dev)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_video_device : '%s'",dev);
+    GST_LOG("'%s'",dev);
 
     g_mutex_lock (&factory->priv->lock);
     g_free (factory->priv->video_device);
@@ -53,7 +54,7 @@ ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory *
     factory, const gchar * dev)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_audio_device : '%s'",dev);
+    GST_LOG("'%s'",dev);
 
     g_mutex_lock (&factory->priv->lock);
     g_free (factory->priv->audio_device);
@@ -66,7 +67,7 @@ ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory *
     factory, const gint * width)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_width : '%i'",width);
+    GST_LOG("'%i'",width);
 
     g_mutex_lock (&factory->priv->lock);
     factory->priv->width = (gint *) width;
@@ -78,7 +79,7 @@ ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory *
     factory, const gint * height)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_height : '%i'",height);
+    GST_LOG("'%i'",height);
 
     g_mutex_lock (&factory->priv->lock);
     factory->priv->height = (gint *) height;
@@ -88,7 +89,7 @@ ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory *
 void 
 ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint * fps){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
-    GST_LOG("set_fps : '%i'",fps);
+    GST_LOG("'%i'",fps);
 
     g_mutex_lock (&factory->priv->lock);
     factory->priv->fps = (gint *) fps;
@@ -241,6 +242,15 @@ static GstElement *
 priv_ext_rtsp_onvif_media_factory_create_element (ExtRTSPOnvifMediaFactory * factory,
     const GstRTSPUrl * url)
 {
+
+    //TODO Increase match scope support
+    v4l2ParameterInput desires;
+    desires.desired_fps = factory->priv->fps;
+    desires.desired_width = factory->priv->width;
+    desires.desired_height = factory->priv->height;
+    desires.desired_pixelformat = V4L2_FMT_YUYV;
+    configure_v4l2_device("/dev/video0", desires, PERFECT_MATCH);
+
     GST_DEBUG("encoder : %s",factory->priv->video_encoder);
     GST_DEBUG("video_device : %s",factory->priv->video_device);
     GST_DEBUG("width : %i",factory->priv->width);

@@ -1,11 +1,12 @@
+#!/bin/bash
 ENABLE_RPI=0
 ENABLE_LIBAV=0
 i=1;
-for arg in "$@" 
+for arg in "$@"
 do
-    if [ $arg == "--enable-libav" ]; then
+    if [ "$arg" == "--enable-libav" ]; then
         ENABLE_LIBAV=1
-    else if [ $arg == "--enable-rpi" ]; then
+    elif [ "$arg" == "--enable-rpi" ]; then
         ENABLE_RPI=1
     fi
     i=$((i + 1));
@@ -27,13 +28,15 @@ autoreconf -i
 mkdir -p subprojects
 cd subprojects
 
-# wget https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.22.1.tar.bz2
-# tar xvfj v4l-utils-1.22.1.tar.bz2
-# rm v4l-utils-1.22.1.tar.bz2
-# cd v4l-utils-1.22.1
-# ./configure --prefix=$(pwd)/dist --enable-static --disable-shared
-# make -j$(nproc)
-# make install 
+wget https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.22.1.tar.bz2
+tar xvfj v4l-utils-1.22.1.tar.bz2
+rm v4l-utils-1.22.1.tar.bz2
+cd v4l-utils-1.22.1
+./bootstrap.sh
+./configure --prefix=$(pwd)/dist --enable-static --disable-shared --with-udevdir=$(pwd)/dist/udev
+make -j$(nproc)
+make install 
+cd ..
 
 git -C gstreamer pull 2> /dev/null || git clone -b 1.21.3 https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 cd gstreamer

@@ -227,9 +227,9 @@ main (int argc, char *argv[])
     ext_rtsp_onvif_media_factory_set_video_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.vdev);
     ext_rtsp_onvif_media_factory_set_audio_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.adev);
     ext_rtsp_onvif_media_factory_set_video_encoder(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.encoder);
-    ext_rtsp_onvif_media_factory_set_width(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),(gint *)arguments.width);
-    ext_rtsp_onvif_media_factory_set_height(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),(gint *)arguments.height);
-    ext_rtsp_onvif_media_factory_set_fps(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),(gint *)arguments.fps);
+    ext_rtsp_onvif_media_factory_set_width(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.width);
+    ext_rtsp_onvif_media_factory_set_height(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.height);
+    ext_rtsp_onvif_media_factory_set_fps(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.fps);
 
     gst_rtsp_onvif_media_factory_set_backchannel_launch(GST_RTSP_ONVIF_MEDIA_FACTORY (factory),backchannel_lauch);
 
