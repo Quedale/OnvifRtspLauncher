@@ -44,7 +44,7 @@ AM_COND_IF([LIBAVCOND],[
 AC_SUBST(PKG_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/pkgconfig')
 AC_SUBST(PKG_GST_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig')
 
-AC_SUBST(PKG_V4L2_PATH, '$(abs_srcdir)/subprojects/v4l-utils-1.22.1/dist/lib/pkgconfig')
+AC_SUBST(PKG_V4L2_PATH, '$(abs_srcdir)/subprojects/v4l-utils/dist/lib/pkgconfig')
 AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH)')
 
 

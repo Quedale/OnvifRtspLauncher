@@ -28,20 +28,27 @@ autoreconf -i
 mkdir -p subprojects
 cd subprojects
 
-wget https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.22.1.tar.bz2
-tar xvfj v4l-utils-1.22.1.tar.bz2
-rm v4l-utils-1.22.1.tar.bz2
-cd v4l-utils-1.22.1
+################################################################
+# 
+#    Build v4l2-utils dependency
+# 
+################################################################
+git -C v4l-utils pull 2> /dev/null || git clone -b v4l-utils-1.22.1 https://github.com/gjasny/v4l-utils.git
+cd v4l-utils
 ./bootstrap.sh
 ./configure --prefix=$(pwd)/dist --enable-static --disable-shared --with-udevdir=$(pwd)/dist/udev
 make -j$(nproc)
 make install 
 cd ..
 
+################################################################
+# 
+#    Build Gstreamer dependency
+# 
+################################################################
 git -C gstreamer pull 2> /dev/null || git clone -b 1.21.3 https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 cd gstreamer
 rm -rf build
-
 
 GST_DIR=$(pwd)
 # Add tinyalsa fallback subproject
@@ -71,7 +78,7 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 
 MESON_PARAMS=""
 # Im not sure how useful libav really is, but fails to compile on rpi
-if [ $ENABLE_LIBAV -eq 0 ]; then
+if [ $ENABLE_LIBAV -eq 1 ]; then
   MESON_PARAMS="$MESON_PARAMS -Dlibav=enabled"
 fi
 
@@ -210,5 +217,10 @@ fi
 rm -rf $GST_DIR/build/dist/lib/*.so
 rm -rf $GST_DIR/build/dist/lib/gstreamer-1.0/*.so
 
+################################################################
+# 
+#    Configure project
+# 
+################################################################
 cd $WORK_DIR
 $SCRT_DIR/configure $@
