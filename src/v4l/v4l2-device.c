@@ -84,13 +84,14 @@ void setFramerate(int fd, unsigned int denominator, unsigned int numerator){
     GST_DEBUG("---------- Doen Setting Framerate ----------");
 }
 
-v4l2MatchResult * create_v4l2_result(MatchTypes type, struct v4l2_frmivalenum frmival){
+v4l2MatchResult * create_v4l2_result(MatchTypes type, struct v4l2_frmivalenum frmival, unsigned int dev_fps){
     v4l2MatchResult * ret = malloc(sizeof(v4l2MatchResult));
     ret->height = (unsigned int) frmival.height;
     ret->width = (unsigned int) frmival.width;
     ret->pixel_format = (unsigned int) frmival.pixel_format;
-    ret->denominator = (unsigned int) frmival.discrete.denominator;
-    ret->numerator = (unsigned int) frmival.discrete.numerator;
+    ret->denominator = dev_fps;
+    ret->numerator = 1;
+    ret->type = type;
 
     return ret;
 }
@@ -104,40 +105,56 @@ void find_compatible_format_frame_interval(unsigned int fd, struct v4l2_frmsizee
     frmival.height = height;
     while (xioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == 0)
     {   
-        if(desires.desired_fps > 1.0*frmival.discrete.denominator/frmival.discrete.numerator){
+        unsigned int dev_fps;
+        if (frmival.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
+            dev_fps = 1.0*frmival.discrete.denominator/frmival.discrete.numerator;
+        } else {
+            int min_fps = 1.0*frmival.stepwise.max.denominator/frmival.stepwise.max.numerator;
+            int max_fps = 1.0*frmival.stepwise.min.denominator/frmival.stepwise.min.numerator;
+            if(min_fps <= desires.desired_fps && max_fps >= desires.desired_fps){
+                dev_fps= desires.desired_fps;
+            } else if(min_fps > desires.desired_fps && max_fps >= desires.desired_fps){
+                dev_fps = min_fps;
+            } else {
+                //Dotnt support insert frame
+                return;
+            }
+        }
+
+        if(desires.desired_fps > dev_fps){
             //Discard increasing FPS 
             // GST_DEBUG("inserting frames...");
         } else if (desires.desired_width > width ||
-            desires.desired_height > height){
+            desires.desired_height > height){ //TODO Different handling for stepwise 
             //Discard scaling up
             // GST_DEBUG("Scaling up");
         } else if(desires.desired_pixelformat == frmsize.pixel_format) {
             if(desires.desired_width == width &&
                 desires.desired_height == height &&
-                desires.desired_fps == 1.0*frmival.discrete.denominator/frmival.discrete.numerator){
+                desires.desired_fps == dev_fps){
                 GST_DEBUG("PERFECT MATCH");
-                v4l2MatchResult * vret = create_v4l2_result(PERFECT,frmival);
+                v4l2MatchResult * vret = create_v4l2_result(PERFECT,frmival,dev_fps);
                 ret->p_match = vret;
             } else if(desires.desired_width == width &&
                 desires.desired_height == height &&
-                desires.desired_fps <= 1.0*frmival.discrete.denominator/frmival.discrete.numerator){
-                v4l2MatchResult * vret = create_v4l2_result(GOOD,frmival);
+                desires.desired_fps <= dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(GOOD,frmival,dev_fps);
                 GST_DEBUG("GOOD MATCH"); //Drop frames
                 v4l2MatchResult__insert_element(ret,vret,0);
             }else if(desires.desired_width <= width &&
                 desires.desired_height <= height &&
-                desires.desired_fps == 1.0*frmival.discrete.denominator/frmival.discrete.numerator){
-                v4l2MatchResult * vret = create_v4l2_result(OK,frmival);
+                desires.desired_fps == dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(OK,frmival,dev_fps);
                 GST_DEBUG("OK MATCH"); //Scale down
                 v4l2MatchResult__insert_element(ret,vret,0);
             } else if(desires.desired_width <= width &&
                 desires.desired_height <= height &&
-                desires.desired_fps <= 1.0*frmival.discrete.denominator/frmival.discrete.numerator){
-                v4l2MatchResult * vret = create_v4l2_result(BAD,frmival);
+                desires.desired_fps <= dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(BAD,frmival,dev_fps);
                 GST_DEBUG("BAD MATCH"); //Drop frames and Scale down
                 v4l2MatchResult__insert_element(ret,vret,0);
             } else {
-                GST_DEBUG("Unexpected outcome-------");
+                GST_ERROR("Unexpected outcome-------");
                 //Scaling up resolution uselessly will increase bandwidth for no good reason
             }
         } else {
@@ -163,13 +180,15 @@ void find_compatible_format_frame_size(int fd, struct v4l2_fmtdesc fmtdesc, v4l2
         {
             //frmsize.pixel_format
             find_compatible_format_frame_interval(fd, frmsize, frmsize.discrete.width, frmsize.discrete.height, desires, ret);
-        }
-        else
-        {
-            for (width=frmsize.stepwise.min_width; width< frmsize.stepwise.max_width; width+=frmsize.stepwise.step_width)
-                for (height=frmsize.stepwise.min_height; height< frmsize.stepwise.max_height; height+=frmsize.stepwise.step_height)
-                    find_compatible_format_frame_interval(fd, frmsize, width, height, desires, ret);
-
+        } else if (frmsize.stepwise.max_width >= desires.desired_width && frmsize.stepwise.max_height >= desires.desired_height){
+            find_compatible_format_frame_interval(fd, frmsize, desires.desired_width, desires.desired_height, desires, ret);
+            //TODO handle this better!
+            //Find compatible match by resoltuion before query FPS
+            // for (width=frmsize.stepwise.min_width; width< frmsize.stepwise.max_width; width+=frmsize.stepwise.step_width)
+            //     for (height=frmsize.stepwise.min_height; height< frmsize.stepwise.max_height; height+=frmsize.stepwise.step_height)
+            //         find_compatible_format_frame_interval(fd, frmsize, width, height, desires, ret);
+        } else {
+            //[Stepwise] Scale up resolution intentionnally not supported
         }
         frmsize.index++;
     }

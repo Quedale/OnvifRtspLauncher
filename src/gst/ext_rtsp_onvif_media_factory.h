@@ -40,34 +40,26 @@ struct ExtRTSPOnvifMediaFactory
   gpointer _gst_reserved[GST_PADDING];
 };
 
-GST_RTSP_SERVER_API
 GType ext_rtsp_onvif_media_factory_get_type (void);
 
-GST_RTSP_SERVER_API
 GstRTSPMediaFactory *
 ext_rtsp_onvif_media_factory_new (void);
 
-GST_RTSP_SERVER_API
 void 
 ext_rtsp_onvif_media_factory_set_video_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
 
-GST_RTSP_SERVER_API
 void 
 ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
 
-GST_RTSP_SERVER_API
 void 
 ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory * factory, const gint * width);
 
-GST_RTSP_SERVER_API
 void 
 ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory * factory, const gint * height);
 
-GST_RTSP_SERVER_API
 void 
 ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint * fps);
 
-GST_RTSP_SERVER_API
 void
 ext_rtsp_onvif_media_factory_set_video_encoder (ExtRTSPOnvifMediaFactory * factory, const gchar * video_encoder);
     
