@@ -11,6 +11,9 @@ struct ExtRTSPOnvifMediaFactoryPrivate
     GMutex lock;
 
     //Video capture parameters
+    v4l2ParameterResults * v4l2params;
+
+    //Video output parameters
     gchar * video_device;
     gint * width;
     gint * height;
@@ -23,6 +26,22 @@ struct ExtRTSPOnvifMediaFactoryPrivate
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (ExtRTSPOnvifMediaFactory, ext_rtsp_onvif_media_factory, GST_TYPE_RTSP_ONVIF_MEDIA_FACTORY);
+
+void 
+ext_rtsp_onvif_media_factory_set_v4l2_params(ExtRTSPOnvifMediaFactory * factory, v4l2ParameterResults * params){
+    g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
+    if(params != NULL){
+        GST_LOG("width : '%f'",params->device_width);
+        GST_LOG("height : '%f'",params->device_height);
+        GST_LOG("fps : '%f'",params->device_denominator/params->device_numerator);
+    } else {
+        GST_LOG("(NULL)");
+    }
+    g_mutex_lock (&factory->priv->lock);
+    g_free (factory->priv->v4l2params);
+    factory->priv->v4l2params = params;
+    g_mutex_unlock (&factory->priv->lock);
+}
 
 void
 ext_rtsp_onvif_media_factory_set_video_encoder (ExtRTSPOnvifMediaFactory *
@@ -115,36 +134,92 @@ ext_rtsp_onvif_media_factory_init (ExtRTSPOnvifMediaFactory * factory)
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
     //Create source
-    GstElement * src;
+    GstElement * last_element;
+
+    v4l2ParameterResults * input = factory->priv->v4l2params;
     //TODO handle alternative sources like picamsrc
     if(!strcmp(factory->priv->video_device,"test")){
-        src = gst_element_factory_make ("videotestsrc", "src");
+        GstElement * src = gst_element_factory_make ("videotestsrc", "src");
+        //Validate source elements
+        if (!src) {
+            g_printerr ("the source  wasn't created... Exiting\n");
+            return NULL;
+        }
         g_object_set(G_OBJECT(src), "is-live", TRUE,NULL);
+        last_element = src;
     } else {
-        src = gst_element_factory_make ("v4l2src", "src");
+        GstElement * src = gst_element_factory_make ("v4l2src", "src");
+        //Validate source elements
+        if (!src) {
+            g_printerr ("the source  wasn't created... Exiting\n");
+            return NULL;
+        }
         g_object_set(G_OBJECT(src), "device", factory->priv->video_device,NULL);
+        last_element = src;
+    }
+
+    if(input != NULL && factory->priv->fps != (gint)1.0*(input->device_denominator/input->device_numerator)){
+        //Drop frames
+        GST_WARNING("Droping framerate from '%i' to '%i'",(int)1.0*(input->device_denominator/input->device_numerator), factory->priv->fps);
+        GstElement * videorate = gst_element_factory_make ("videorate", "vrate");
+        g_object_set(G_OBJECT(videorate), "max-rate", factory->priv->fps,NULL);
+        //Validate videorate elements
+        if (!videorate) {
+            g_printerr ("videorate wasn't created... Exiting\n");
+            return NULL;
+        }
+        //Adding source elements to bin
+        gst_bin_add_many (GST_BIN (ret), last_element, videorate, NULL);
+
+        //Linking source elements
+        if (!gst_element_link_many (last_element, videorate, NULL)){
+            GST_ERROR ("Linking source part (A)-2 Fail...");
+            return NULL;
+        }
+        last_element = videorate;
+    }
+
+    if(input != NULL && (input->device_width != factory->priv->width || input->device_height != factory->priv->height)){
+        //Scale down required
+        //TODO instead crop from center
+        GST_WARNING("Scale down from '%i/%i' to '%i/%i'",input->device_width,input->device_height,factory->priv->width,factory->priv->height);
+        GstElement * videoscale = gst_element_factory_make ("videoscale", "vscale");
+
+        //Validate videorate elements
+        if (!videoscale) {
+            g_printerr ("videorate wasn't created... Exiting\n");
+            return NULL;
+        }
+        //Adding source elements to bin
+        gst_bin_add_many (GST_BIN (ret), last_element, videoscale, NULL);
+
+        //Linking source elements
+        if (!gst_element_link_many (last_element, videoscale, NULL)){
+            GST_ERROR ("Linking source part (A)-2 Fail...");
+            return NULL;
+        }
+        last_element = videoscale;
     }
     GstElement * src_capsfilter = gst_element_factory_make ("capsfilter", "src_caps");
     GstElement * vq = gst_element_factory_make ("queue", "vqueue");
 
-    //Set as last element for additional linking
-    GstElement * last_element = vq;
-
-
     //Validate source elements
-    if (!src || !src_capsfilter || !vq) {
+    if (!src_capsfilter || !vq) {
         g_printerr ("One of the source elements wasn't created... Exiting\n");
         return NULL;
     }
 
     //Adding source elements to bin
-    gst_bin_add_many (GST_BIN (ret), src, src_capsfilter, vq, NULL);
+    gst_bin_add_many (GST_BIN (ret), last_element, src_capsfilter, vq, NULL);
 
     //Linking source elements
-    if (!gst_element_link_many (src, src_capsfilter, vq, NULL)){
+    if (!gst_element_link_many (last_element, src_capsfilter, vq, NULL)){
         GST_ERROR ("Linking source part (A)-2 Fail...");
         return NULL;
     }
+
+    //Set as last element for additional linking
+    last_element = vq;
 
     if(factory->priv->video_encoder){
         GstElement * videoconvert = gst_element_factory_make ("videoconvert", "videoconvert");
@@ -249,8 +324,14 @@ priv_ext_rtsp_onvif_media_factory_create_element (ExtRTSPOnvifMediaFactory * fac
     desires.desired_width = factory->priv->width;
     desires.desired_height = factory->priv->height;
     desires.desired_pixelformat = V4L2_FMT_YUYV;
-    configure_v4l2_device("/dev/video0", desires, PERFECT_MATCH);
-
+    if(strcmp(factory->priv->video_device,"test")){
+        v4l2ParameterResults * ret_val = configure_v4l2_device(factory->priv->video_device, desires, BAD_MATCH);
+        if(ret_val == NULL){
+            g_printerr ("Unable to configure v4l2 source device...\n");
+            return NULL;
+        }
+        ext_rtsp_onvif_media_factory_set_v4l2_params(factory,ret_val);
+    }
     GST_DEBUG("encoder : %s",factory->priv->video_encoder);
     GST_DEBUG("video_device : %s",factory->priv->video_device);
     GST_DEBUG("width : %i",factory->priv->width);

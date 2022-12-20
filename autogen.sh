@@ -148,6 +148,7 @@ meson setup build \
   -Dgst-plugins-base:xvideo=enabled \
   -Dgst-plugins-base:alsa=enabled \
   -Dgst-plugins-base:videoconvertscale=enabled \
+  -Dgst-plugins-base:videorate=enabled \
   -Dgst-plugins-base:tcp=enabled \
   -Dgst-plugins-base:rawparse=enabled \
   -Dgst-plugins-base:pbtypes=enabled \

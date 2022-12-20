@@ -25,7 +25,7 @@ GST_PLUGIN_STATIC_DECLARE(rawparse);
 GST_PLUGIN_STATIC_DECLARE(tcp);
 GST_PLUGIN_STATIC_DECLARE(typefindfunctions);
 GST_PLUGIN_STATIC_DECLARE(videoconvertscale);
-// GST_PLUGIN_STATIC_DECLARE(videorate); gstvideorate
+GST_PLUGIN_STATIC_DECLARE(videorate); // gstvideorate
 GST_PLUGIN_STATIC_DECLARE(videotestsrc);
 GST_PLUGIN_STATIC_DECLARE(volume); // gstvolume
 GST_PLUGIN_STATIC_DECLARE(alsa);
@@ -233,7 +233,7 @@ onvif_init_static_plugins (void)
     GST_PLUGIN_STATIC_REGISTER(tcp);
     GST_PLUGIN_STATIC_REGISTER(typefindfunctions);
     GST_PLUGIN_STATIC_REGISTER(videoconvertscale);
-    // GST_PLUGIN_STATIC_REGISTER(videorate); gstvideorate
+    GST_PLUGIN_STATIC_REGISTER(videorate); // gstvideorate
     GST_PLUGIN_STATIC_REGISTER(videotestsrc);
     GST_PLUGIN_STATIC_REGISTER(volume); // gstvolume
     GST_PLUGIN_STATIC_REGISTER(alsa);

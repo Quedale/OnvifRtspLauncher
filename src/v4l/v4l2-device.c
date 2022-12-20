@@ -255,7 +255,7 @@ v4l2ParameterResults * configure_v4l2_device(char * device, v4l2ParameterInput d
             //It takes less computing to drop frame and has lesser potential impact on image quality
             ret_val = create_return_result(results->bad_matches[0]);
         } else {
-            GST_DEBUG("No bad match");
+            GST_ERROR("No compatible v4l2 configuration match found.");
         }
         v4l2_close(fd);
 
