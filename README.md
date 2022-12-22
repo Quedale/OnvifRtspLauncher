@@ -37,13 +37,30 @@ Your program description.
       --usage                Give a short usage message
   -V, --version              Print program version
 ```
+
+# Build Dependencies
+Install the latest meson package from pip
+```
+sudo apt install python3-pip
+python3 -m pip install meson
+```
+I'm not sure if this is true for all distros, but this is required to get the new binary in the system's PATH
+```
+export PATH=$PATH:$HOME/.local/bin
+```
+
+Install libtool and gettext
+```
+sudo apt-get install libtool gettext
+```
+
 # How to build
 ### Clone repository
 ```
 git clone https://github.com/Quedale/OnvifRtspLauncher.git
 cd OnvifRtspLauncher
 ```
-### autogen dependencies
+### autogen gstreamer and v4l-utils dependencies
 This project support out-of-tree build to keep src directory clean.
 
 Generic build:
