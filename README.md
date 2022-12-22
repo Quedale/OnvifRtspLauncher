@@ -39,19 +39,23 @@ Your program description.
 ```
 
 # Build Dependencies
-Install the latest meson package from pip
+Install the latest build tools from pip
 ```
 sudo apt install python3-pip
+python3 -m pip install pip --upgrade
+python3 -m pip install setuptools
 python3 -m pip install meson
+python3 -m pip install ninja
+python3 -m pip install libtool
 ```
 I'm not sure if this is true for all distros, but this is required to get the new binary in the system's PATH
 ```
 export PATH=$PATH:$HOME/.local/bin
 ```
 
-Install libtool and gettext
+Install gettext
 ```
-sudo apt-get install libtool gettext
+sudo apt-get install gettext
 ```
 
 # How to build
