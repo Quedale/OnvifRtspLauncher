@@ -17,6 +17,7 @@ The goal of this utility is to have an pluggable process that can be launched fr
 1. RPi Legacy multi-stream support.
 2. RPi Bullseye hardware support (v4l2-codec)
 3. RockPro64 hardware support (rkmpp)
+4. Snapshot launch option. (To support ONVIF Snapshot command)
 
 # Usage
 ```
