@@ -24,15 +24,14 @@ The goal of this utility is to have an pluggable process that can be launched fr
 Usage: onvifserver [OPTION...]
 Your program description.
 
-  -a, --audio=AUDIO          Input audio device. (Default: none)
-  -e, --encoder=ENCODER      Gstreamer encoder. (Default: x264enc)
-  -f, --fps=FPS              Video input height. (Default: 30)
-  -h, --height=HEIGHT        Video input height. (Default: 480)
+  -a, --audio=AUDIO          Input audio device. (Default: auto)
+  -e, --encoder=ENCODER      Gstreamer encoder. (Default: auto)
+  -f, --fps=FPS              Video output framerate. (Default: 10)
+  -h, --height=HEIGHT        Video output height. (Default: 480)
   -m, --mount=MOUNT          URL mount point. (Default: h264)
   -p, --port=PORT            Network port to listen. (Default: 8554)
-  -t, --format=FORMAT        Video input format. (Default: YUY2)
   -v, --video=VIDEO          Input video device. (Default: /dev/video0)
-  -w, --width=WIDTH          Video input width. (Default: 640)
+  -w, --width=WIDTH          Video output width. (Default: 640)
   -?, --help                 Give this help list
       --usage                Give a short usage message
   -V, --version              Print program version
