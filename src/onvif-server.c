@@ -44,12 +44,12 @@ const char *argp_program_bug_address = "<your@email.address>";
 static char doc[] = "Your program description.";
 static struct argp_option options[] = { 
     { "video", 'v', "VIDEO", 0, "Input video device. (Default: /dev/video0)"},
-    { "audio", 'a', "AUDIO", 0, "Input audio device. (Default: none)"},
-    { "encoder", 'e', "ENCODER", 0, "Gstreamer encoder. (Default: x264enc)"},
-    { "width", 'w', "WIDTH", 0, "Video input width. (Default: 640)"},
-    { "height", 'h', "HEIGHT", 0, "Video input height. (Default: 480)"},
-    { "fps", 'f', "FPS", 0, "Video input height. (Default: 30)"},
-    { "format", 't', "FORMAT", 0, "Video input format. (Default: YUY2)"},
+    { "audio", 'a', "AUDIO", 0, "Input audio device. (Default: auto)"},
+    { "encoder", 'e', "ENCODER", 0, "Gstreamer encoder. (Default: auto)"},
+    { "width", 'w', "WIDTH", 0, "Video output width. (Default: 640)"},
+    { "height", 'h', "HEIGHT", 0, "Video output height. (Default: 480)"},
+    { "fps", 'f', "FPS", 0, "Video output framerate. (Default: 10)"},
+    // { "format", 't', "FORMAT", 0, "Video input format. (Default: YUY2)"},
     { "mount", 'm', "MOUNT", 0, "URL mount point. (Default: h264)"},
     { "port", 'p', "PORT", 0, "Network port to listen. (Default: 8554)"},
     { 0 } 
