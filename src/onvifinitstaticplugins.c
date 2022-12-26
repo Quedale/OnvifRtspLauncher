@@ -45,7 +45,7 @@ GST_PLUGIN_STATIC_DECLARE(autodetect);
 // GST_PLUGIN_STATIC_DECLARE(avi); gstavi
 // GST_PLUGIN_STATIC_DECLARE(cutter); gstcutter
 // GST_PLUGIN_STATIC_DECLARE(navigationtest); gstnavigationtest
-// GST_PLUGIN_STATIC_DECLARE(debug); gstdebug
+GST_PLUGIN_STATIC_DECLARE(debug);  // gstdebug
 // GST_PLUGIN_STATIC_DECLARE(deinterlace); gstdeinterlace
 // GST_PLUGIN_STATIC_DECLARE(dtmf); gstdtmf
 // GST_PLUGIN_STATIC_DECLARE(effectv); gsteffectv
@@ -253,7 +253,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(avi); gstavi
     // GST_PLUGIN_STATIC_REGISTER(cutter); gstcutter
     // GST_PLUGIN_STATIC_REGISTER(navigationtest); gstnavigationtest
-    // GST_PLUGIN_STATIC_REGISTER(debug); gstdebug
+    GST_PLUGIN_STATIC_REGISTER(debug); // gstdebug
     // GST_PLUGIN_STATIC_REGISTER(deinterlace); gstdeinterlace
     // GST_PLUGIN_STATIC_REGISTER(dtmf); gstdtmf
     // GST_PLUGIN_STATIC_REGISTER(effectv); gsteffectv

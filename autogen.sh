@@ -31,15 +31,21 @@ cd subprojects
 ################################################################
 # 
 #    Build v4l2-utils dependency
+#   sudo apt install libv4l2-dev (tested 1.16.3)
 # 
 ################################################################
-git -C v4l-utils pull 2> /dev/null || git clone -b v4l-utils-1.22.1 https://github.com/gjasny/v4l-utils.git
-cd v4l-utils
-./bootstrap.sh
-./configure --prefix=$(pwd)/dist --enable-static --disable-shared --with-udevdir=$(pwd)/dist/udev
-make -j$(nproc)
-make install 
-cd ..
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig
+if [ ! -z "$(pkg-config --exists --print-errors "libv4l2 >= 1.16.3")" ]; then
+  git -C v4l-utils pull 2> /dev/null || git clone -b v4l-utils-1.22.1 https://github.com/gjasny/v4l-utils.git
+  cd v4l-utils
+  ./bootstrap.sh
+  ./configure --prefix=$(pwd)/dist --enable-static --disable-shared --with-udevdir=$(pwd)/dist/udev
+  make -j$(nproc)
+  make install 
+  cd ..
+else
+  echo "libv4l2 already found."
+fi
 
 ################################################################
 # 
@@ -124,6 +130,10 @@ MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=disabled"
 # MESON_PARAMS="$MESON_PARAMS -Dtools=disabled"
 # MESON_PARAMS="$MESON_PARAMS -Dexamples=disabled"
 MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
+
+#Blow is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
+# This is to support v4l2h264enc element with capssetter
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 
 # Customized build <2K file
 meson setup build \

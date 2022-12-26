@@ -33,6 +33,7 @@
 #include "sink-retriever.h"
 #include "vencoder-retriever.h"
 #include "gst/ext_rtsp_onvif_media_factory.h"
+#include "v4l/v4l2-device.h"
 
 GST_DEBUG_CATEGORY_STATIC (ext_onvif_server_debug);
 #define GST_CAT_DEFAULT (ext_onvif_server_debug)
@@ -222,7 +223,28 @@ main (int argc, char *argv[])
     
     GST_DEBUG("Backchannel : %s",backchannel_lauch);
     factory = ext_rtsp_onvif_media_factory_new ();
+
+    //Set v4l2Parameter or quit if not found
+    if(strcmp(arguments.vdev,"test")){
+        v4l2ParameterInput desires;
+        desires.desired_fps = arguments.fps;
+        desires.desired_width = arguments.width;
+        desires.desired_height = arguments.height;
+        desires.desired_pixelformat = V4L2_FMT_YUYV;
+        v4l2ParameterResults * ret_val = configure_v4l2_device("/dev/video0", desires, BAD_MATCH);
+        if(ret_val == NULL){
+            g_printerr ("Unable to configure v4l2 source device...\n");
+            return NULL;
+        }
     
+        ext_rtsp_onvif_media_factory_set_v4l2_params(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),ret_val);
+    }    
+
+    //Easy way to override custom pipeline creation in favor or legacy launch string.
+    // char * launch = "videotestsrc is-live=true ! video/x-raw, format=YUY2, width=640, height=480, framerate=10/1 ! videoconvert !  v4l2h264enc extra-controls=\"encode,video_bitrate=25000000\" ! video/x-h264,profile=(string)high,level=(string)4,framerate=(fraction)10/1,width=640, height=480 ! h264parse ! rtph264pay name=pay0 pt=96";
+    // printf("launch : %s\n",launch);
+    // gst_rtsp_media_factory_set_launch (GST_RTSP_ONVIF_MEDIA_FACTORY(factory),launch);
+
     //TODO handle format
     ext_rtsp_onvif_media_factory_set_video_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.vdev);
     ext_rtsp_onvif_media_factory_set_audio_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.adev);
