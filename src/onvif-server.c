@@ -52,6 +52,8 @@ static struct argp_option options[] = {
     // { "format", 't', "FORMAT", 0, "Video input format. (Default: YUY2)"},
     { "mount", 'm', "MOUNT", 0, "URL mount point. (Default: h264)"},
     { "port", 'p', "PORT", 0, "Network port to listen. (Default: 8554)"},
+    { "snapshot", 's', "RTSPURL", 0, "Overrides all other input and takes a snapshot of the provided rtsp url."},
+    { "output", 'o', "PNGFILE", 0, "Overrides all other input and set the snapshot output. (Default: output.png)"},
     { 0 } 
 };
 
@@ -59,6 +61,8 @@ static struct argp_option options[] = {
 struct arguments {
     char *vdev;
     char *adev;
+    char *snapshot;
+    char * output;
     int width;
     int height;
     int fps;
@@ -80,6 +84,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 'e': arguments->encoder = arg; break;
     case 'm': arguments->mount = arg; break;
     case 'p': arguments->port = atoi(arg); break;
+    case 's': arguments->snapshot = arg; break;
+    case 'o': arguments->output = arg; break;
     case ARGP_KEY_ARG: return 0;
     default: return ARGP_ERR_UNKNOWN;
     }   
@@ -119,6 +125,52 @@ char* itoa(int value, char* result, int base) {
 }
 
 
+void take_snapshot(char * rtsp_url, char * outputfile){
+    GstElement *pipeline, *rtspsrc, *appsink;
+    pipeline = gst_parse_launch ("rtspsrc name=r "
+        " ! queue ! decodebin ! videoconvert ! pngenc snapshot=true ! appsink sync=false max-buffers=2 drop=true name=sink emit-signals=true ", NULL);
+    if (!pipeline)
+        g_error ("Failed to parse pipeline");
+
+    rtspsrc = gst_bin_get_by_name (GST_BIN (pipeline), "r");
+    g_object_set (G_OBJECT (rtspsrc), "location", rtsp_url, NULL);
+
+    appsink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
+
+    gst_element_set_state (pipeline, GST_STATE_PLAYING);
+
+    GstSample *sample;
+    g_signal_emit_by_name (appsink, "pull-sample", &sample);
+    if (!sample){
+        GST_ERROR("Unable to pull sample from sink.");
+        return;
+    }
+
+    GstBuffer *buffer = gst_sample_get_buffer(sample);
+
+    GstMemory* memory = gst_buffer_get_all_memory(buffer);
+    GstMapInfo map_info;
+
+    if(! gst_memory_map(memory, &map_info, GST_MAP_READ)) {
+        gst_memory_unref(memory);
+        gst_sample_unref(sample);
+        GST_ERROR("Unable to read sample memory.");
+        return;
+    }
+
+    FILE *fptr;
+    fptr = fopen(outputfile,"wb");
+    if(fptr == NULL)
+    {
+        GST_ERROR("Unable open output file.");
+        return;          
+    }
+    fwrite(map_info.data, map_info.size, 1, fptr); 
+
+    fclose(fptr);
+    GST_INFO("Done capturing file");
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -145,10 +197,18 @@ main (int argc, char *argv[])
     arguments.encoder = NULL;
     arguments.mount = "h264";
     arguments.port = 8554;
+    arguments.snapshot = NULL;
+    arguments.output = "output.png";
 
     /* Default values. */
 
     argp_parse(&argp, argc, argv, 0, 0, &arguments);
+
+    if(arguments.snapshot){
+        GST_INFO("Taking snapshot of '%s'",arguments.snapshot);
+        take_snapshot(arguments.snapshot, arguments.output);
+        return 0;
+    }
 
     if(!arguments.encoder){
         arguments.encoder = retrieve_videoencoder();

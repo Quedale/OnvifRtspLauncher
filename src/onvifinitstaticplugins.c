@@ -97,7 +97,7 @@ GST_PLUGIN_STATIC_DECLARE(video4linux2);
 // GST_PLUGIN_STATIC_DECLARE(jpeg); gstjpeg
 // GST_PLUGIN_STATIC_DECLARE(lame); gstlame 
 // GST_PLUGIN_STATIC_DECLARE(dv); gstdv
-// GST_PLUGIN_STATIC_DECLARE(png); gstpng
+GST_PLUGIN_STATIC_DECLARE(png);  // gstpng
 // GST_PLUGIN_STATIC_DECLARE(soup); gstsoup
 // GST_PLUGIN_STATIC_DECLARE(nice); gstnice
 // GST_PLUGIN_STATIC_DECLARE(accurip); gstaccurip
@@ -305,7 +305,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(jpeg); gstjpeg
     // GST_PLUGIN_STATIC_REGISTER(lame); gstlame 
     // GST_PLUGIN_STATIC_REGISTER(dv); gstdv
-    // GST_PLUGIN_STATIC_REGISTER(png); gstpng
+    GST_PLUGIN_STATIC_REGISTER(png); // gstpng
     // GST_PLUGIN_STATIC_REGISTER(soup); gstsoup
     // GST_PLUGIN_STATIC_REGISTER(nice); gstnice
     // GST_PLUGIN_STATIC_REGISTER(accurip); gstaccurip

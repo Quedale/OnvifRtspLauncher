@@ -137,6 +137,9 @@ MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
 # This is to support v4l2h264enc element with capssetter
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 
+# This is required for the snapshot feature
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
+
 # Customized build <2K file
 meson setup build \
   --buildtype=release \
