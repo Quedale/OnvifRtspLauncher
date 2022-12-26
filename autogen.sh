@@ -34,8 +34,10 @@ cd subprojects
 #   sudo apt install libv4l2-dev (tested 1.16.3)
 # 
 ################################################################
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig
-if [ ! -z "$(pkg-config --exists --print-errors "libv4l2 >= 1.16.3")" ]; then
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig \
+pkg-config --exists --print-errors "libv4l2 >= 1.16.3"
+ret=$?
+if [ $ret != 0 ]; then 
   git -C v4l-utils pull 2> /dev/null || git clone -b v4l-utils-1.22.1 https://github.com/gjasny/v4l-utils.git
   cd v4l-utils
   ./bootstrap.sh
