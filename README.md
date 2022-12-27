@@ -8,16 +8,19 @@ The goal of this utility is to have an pluggable process that can be launched fr
 1. Extended GstRtspMediaFactory to manipulate pipeline dynamically.
 2. v4l2 capability discovery to find compatible capture configuration.  (Adjust FPS and Resolution)
  - onvifserver will intentionally fail if configuration requires increasing FPS or scaling up resolution
-3. RPi Legacy OMX hardware support. (Single stream)
-4. RPi Bullseye v4l2 hardware support (Single stream)
-5. openh264enc and x264enc software support.
-6. Nvidia support can easily be enabled, but caused unrelated issues on my laptop so I disabled it.
-7. Backchannel audio stream.
+3. Raw Capture Input (YUV2 for now)
+4. RPi Legacy OMX hardware support. (Single stream)
+5. RPi Bullseye v4l2 hardware support (Single stream)
+6. openh264, x264, libav software support.
+7. Nvidia support can easily be enabled, but causes unrelated issues on my laptop so I disabled it for now.
+8. Backchannel audio stream.
+9. Snapshots capabilities (To support ONVIF Snapshot command)
 
-# WIP
+# WIP/TODO
 1. RPi multi-stream support.
-3. RockPro64 hardware support (rkmpp)
-4. Snapshot launch option. (To support ONVIF Snapshot command)
+2. RockPro64 hardware support (rkmpp)
+3. autogen.sh error handling
+4. H264 Capture input support. (e.g. Picam)
 
 # Usage
 ```
