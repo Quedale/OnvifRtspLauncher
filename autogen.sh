@@ -85,14 +85,50 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 
 MESON_PARAMS=""
 
-if [ $ENABLE_RPI -eq 1 ]; then
-  MESON_PARAMS="$MESON_PARAMS -DFFmpeg:omx=enabled"
-fi
-
 # Force disable subproject features
 MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false"
 MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=false"
 MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
+
+MESON_PARAMS="$MESON_PARAMS -Dbase=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgood=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dbad=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgpl=enabled"
+MESON_PARAMS="$MESON_PARAMS -Drtsp_server=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:app=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:typefind=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audiotestsrc=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videotestsrc=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:playback=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:x11=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:xvideo=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:alsa=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videoconvertscale=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videorate=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:rawparse=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:pbtypes=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioresample=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioconvert=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:volume=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:v4l2=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtsp=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtp=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtpmanager=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:law=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:autodetect=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:pulse=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:interleave=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:audioparsers=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:switchbin=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
 
 #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
 # This is to support v4l2h264enc element with capssetter
@@ -100,6 +136,14 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 
 # This is required for the snapshot feature
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
+
+#  -Dgst-plugins-base:overlaycomposition=enabled \
+#  -Dgst-plugins-base:tcp=enabled \
+#  -Dgst-plugins-good:udp=enabled \
+#  -Dgst-plugins-good:oss=enabled \
+#  -Dgst-plugins-good:oss4=enabled \
+#  -Dgst-plugins-bad:mpegtsmux=enabled \
+#  -Dgst-plugins-bad:mpegtsdemux=enabled \
 
 # Customized build <2K file
 rm -rf build
@@ -110,52 +154,6 @@ meson setup build \
   --wrap-mode=forcefallback \
   -Dauto_features=disabled \
   $MESON_PARAMS \
-  -Dbase=enabled \
-  -Dgood=enabled \
-  -Dbad=enabled \
-  -Dugly=enabled \
-  -Dgpl=enabled \
-  -Drtsp_server=enabled \
-  -Dgst-plugins-base:app=enabled \
-  -Dgst-plugins-base:typefind=enabled \
-  -Dgst-plugins-base:audiotestsrc=enabled \
-  -Dgst-plugins-base:videotestsrc=enabled \
-  -Dgst-plugins-base:playback=enabled \
-  -Dgst-plugins-base:x11=enabled \
-  -Dgst-plugins-base:xvideo=enabled \
-  -Dgst-plugins-base:alsa=enabled \
-  -Dgst-plugins-base:videoconvertscale=enabled \
-  -Dgst-plugins-base:videorate=enabled \
-  -Dgst-plugins-base:tcp=enabled \
-  -Dgst-plugins-base:rawparse=enabled \
-  -Dgst-plugins-base:pbtypes=enabled \
-  -Dgst-plugins-base:overlaycomposition=enabled \
-  -Dgst-plugins-base:audioresample=enabled \
-  -Dgst-plugins-base:audioconvert=enabled \
-  -Dgst-plugins-base:volume=enabled \
-  -Dgst-plugins-good:v4l2=enabled \
-  -Dgst-plugins-good:rtsp=enabled \
-  -Dgst-plugins-good:rtp=enabled \
-  -Dgst-plugins-good:rtpmanager=enabled \
-  -Dgst-plugins-good:law=enabled \
-  -Dgst-plugins-good:udp=enabled \
-  -Dgst-plugins-good:autodetect=enabled \
-  -Dgst-plugins-good:pulse=enabled \
-  -Dgst-plugins-good:oss=enabled \
-  -Dgst-plugins-good:oss4=enabled \
-  -Dgst-plugins-good:interleave=enabled \
-  -Dgst-plugins-good:audioparsers=enabled \
-  -Dgst-plugins-bad:openh264=enabled \
-  -Dgst-plugins-bad:nvcodec=enabled \
-  -Dgst-plugins-bad:v4l2codecs=enabled \
-  -Dgst-plugins-bad:fdkaac=enabled \
-  -Dgst-plugins-bad:tinyalsa=enabled \
-  -Dgst-plugins-bad:videoparsers=enabled \
-  -Dgst-plugins-bad:switchbin=enabled \
-  -Dgst-plugins-bad:onvif=enabled \
-  -Dgst-plugins-bad:mpegtsmux=enabled \
-  -Dgst-plugins-bad:mpegtsdemux=enabled \
-  -Dgst-plugins-ugly:x264=enabled \
   --prefix=$GST_DIR/build/dist \
   --libdir=lib
 
@@ -163,6 +161,7 @@ meson compile -C build
 meson install -C build
 
 if [ $ENABLE_LIBAV -eq 1 ]; then
+  echo "LIBAV Feature enabled..."
   cd ..
   #######################
   #
@@ -189,6 +188,7 @@ if [ $ENABLE_LIBAV -eq 1 ]; then
   #######################
   #
   # Rebuild gstreamer with libav with nofallback
+  #   TODO : optionally add omx or rkmpp etc
   #
   #######################
   #Rebuild with custom ffmpeg build
@@ -222,6 +222,7 @@ if [ $ENABLE_LIBAV -eq 1 ]; then
 fi
 
 if [ $ENABLE_RPI -eq 1 ]; then
+  echo "Legacy RPi OMX Feature enabled..."
   # OMX is build sperately, because it depends on a build variable defined in the shared build.
   #   So we build both to get the static ones.
   rm -rf build_omx

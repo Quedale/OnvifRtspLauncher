@@ -17,12 +17,12 @@ GST_PLUGIN_STATIC_DECLARE(audiotestsrc);
 // GST_PLUGIN_STATIC_DECLARE(compositor); gstcompositor
 // GST_PLUGIN_STATIC_DECLARE(encoding); gstencoding
 // GST_PLUGIN_STATIC_DECLARE(gio); gstgio
-GST_PLUGIN_STATIC_DECLARE(overlaycomposition);
+// GST_PLUGIN_STATIC_DECLARE(overlaycomposition);
 GST_PLUGIN_STATIC_DECLARE(pbtypes);
 GST_PLUGIN_STATIC_DECLARE(playback);
 GST_PLUGIN_STATIC_DECLARE(rawparse);
 // GST_PLUGIN_STATIC_DECLARE(subparse); gstsubparse
-GST_PLUGIN_STATIC_DECLARE(tcp);
+// GST_PLUGIN_STATIC_DECLARE(tcp);
 GST_PLUGIN_STATIC_DECLARE(typefindfunctions);
 GST_PLUGIN_STATIC_DECLARE(videoconvertscale);
 GST_PLUGIN_STATIC_DECLARE(videorate); // gstvideorate
@@ -77,7 +77,7 @@ GST_PLUGIN_STATIC_DECLARE(rtsp);
 // GST_PLUGIN_STATIC_DECLARE(shapewipe); gstshapewipe
 // GST_PLUGIN_STATIC_DECLARE(smpte); gstsmpte
 // GST_PLUGIN_STATIC_DECLARE(spectrum); gstspectrum
-GST_PLUGIN_STATIC_DECLARE(udp);
+// GST_PLUGIN_STATIC_DECLARE(udp);
 // GST_PLUGIN_STATIC_DECLARE(videobox); gstvideobox
 // GST_PLUGIN_STATIC_DECLARE(videocrop); gstvideocrop
 // GST_PLUGIN_STATIC_DECLARE(videofilter); gstvideofilter
@@ -86,8 +86,8 @@ GST_PLUGIN_STATIC_DECLARE(udp);
 // GST_PLUGIN_STATIC_DECLARE(wavparse); gstwavparse
 // GST_PLUGIN_STATIC_DECLARE(xingmux); gstxingmux
 // GST_PLUGIN_STATIC_DECLARE(y4menc); gsty4menc
-GST_PLUGIN_STATIC_DECLARE(ossaudio);
-GST_PLUGIN_STATIC_DECLARE(oss4);
+// GST_PLUGIN_STATIC_DECLARE(ossaudio);
+// GST_PLUGIN_STATIC_DECLARE(oss4);
 GST_PLUGIN_STATIC_DECLARE(video4linux2);
 // GST_PLUGIN_STATIC_DECLARE(ximagesrc); gstximagesrc
 // GST_PLUGIN_STATIC_DECLARE(adaptivedemux2); gstadaptivedemux2
@@ -139,8 +139,8 @@ GST_PLUGIN_STATIC_DECLARE(asfmux);
 // GST_PLUGIN_STATIC_DECLARE(midi); gstmidi 
 // GST_PLUGIN_STATIC_DECLARE(mpegpsdemux); gstmpegpsdemux
 // GST_PLUGIN_STATIC_DECLARE(mpegpsmux); gstmpegpsmux
-GST_PLUGIN_STATIC_DECLARE(mpegtsdemux);
-GST_PLUGIN_STATIC_DECLARE(mpegtsmux);
+// GST_PLUGIN_STATIC_DECLARE(mpegtsdemux);
+// GST_PLUGIN_STATIC_DECLARE(mpegtsmux);
 // GST_PLUGIN_STATIC_DECLARE(mxf); gstmxf
 // GST_PLUGIN_STATIC_DECLARE(netsim); gstnetsim
 GST_PLUGIN_STATIC_DECLARE(rtponvif);
@@ -225,12 +225,12 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(compositor); gstcompositor
     // GST_PLUGIN_STATIC_REGISTER(encoding); gstencoding
     // GST_PLUGIN_STATIC_REGISTER(gio); gstgio
-    GST_PLUGIN_STATIC_REGISTER(overlaycomposition);
+    // GST_PLUGIN_STATIC_REGISTER(overlaycomposition);
     GST_PLUGIN_STATIC_REGISTER(pbtypes);
     GST_PLUGIN_STATIC_REGISTER(playback);
     GST_PLUGIN_STATIC_REGISTER(rawparse);
     // GST_PLUGIN_STATIC_REGISTER(subparse); gstsubparse
-    GST_PLUGIN_STATIC_REGISTER(tcp);
+    // GST_PLUGIN_STATIC_REGISTER(tcp);
     GST_PLUGIN_STATIC_REGISTER(typefindfunctions);
     GST_PLUGIN_STATIC_REGISTER(videoconvertscale);
     GST_PLUGIN_STATIC_REGISTER(videorate); // gstvideorate
@@ -285,7 +285,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(shapewipe); gstshapewipe
     // GST_PLUGIN_STATIC_REGISTER(smpte); gstsmpte
     // GST_PLUGIN_STATIC_REGISTER(spectrum); gstspectrum
-    GST_PLUGIN_STATIC_REGISTER(udp);
+    // GST_PLUGIN_STATIC_REGISTER(udp);
     // GST_PLUGIN_STATIC_REGISTER(videobox); gstvideobox
     // GST_PLUGIN_STATIC_REGISTER(videocrop); gstvideocrop
     // GST_PLUGIN_STATIC_REGISTER(videofilter); gstvideofilter
@@ -294,8 +294,8 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(wavparse); gstwavparse
     // GST_PLUGIN_STATIC_REGISTER(xingmux); gstxingmux
     // GST_PLUGIN_STATIC_REGISTER(y4menc); gsty4menc
-    GST_PLUGIN_STATIC_REGISTER(ossaudio);
-    GST_PLUGIN_STATIC_REGISTER(oss4);
+    // GST_PLUGIN_STATIC_REGISTER(ossaudio);
+    // GST_PLUGIN_STATIC_REGISTER(oss4);
     GST_PLUGIN_STATIC_REGISTER(video4linux2);
     // GST_PLUGIN_STATIC_REGISTER(ximagesrc); gstximagesrc
     // GST_PLUGIN_STATIC_REGISTER(adaptivedemux2); gstadaptivedemux2
@@ -347,8 +347,8 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(midi); gstmidi
     // GST_PLUGIN_STATIC_REGISTER(mpegpsdemux); gstmpegpsdemux
     // GST_PLUGIN_STATIC_REGISTER(mpegpsmux); gstmpegpsmux
-    GST_PLUGIN_STATIC_REGISTER(mpegtsdemux);
-    GST_PLUGIN_STATIC_REGISTER(mpegtsmux);
+    // GST_PLUGIN_STATIC_REGISTER(mpegtsdemux);
+    // GST_PLUGIN_STATIC_REGISTER(mpegtsmux);
     // GST_PLUGIN_STATIC_REGISTER(mxf); gstmxf
     // GST_PLUGIN_STATIC_REGISTER(netsim); gstnetsim
     GST_PLUGIN_STATIC_REGISTER(rtponvif);
