@@ -168,6 +168,10 @@ void take_snapshot(char * rtsp_url, char * outputfile){
     fwrite(map_info.data, map_info.size, 1, fptr); 
 
     fclose(fptr);
+
+    gst_element_set_state (pipeline, GST_STATE_READY);
+    gst_element_set_state (pipeline, GST_STATE_NULL);
+    gst_object_unref (pipeline);
     GST_INFO("Done capturing file");
 }
 
