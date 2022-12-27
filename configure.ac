@@ -27,7 +27,7 @@ AM_COND_IF([RPICOND],[
 ])
 
 AC_ARG_ENABLE(libav,
-    [AS_HELP_STRING([--enable-rpi],[Enable libav gstreamer plugin. @<:@default=no@:>@.])],
+    [AS_HELP_STRING([--enable-libav],[Enable libav gstreamer plugin. @<:@default=no@:>@.])],
     [case "${enableval}" in
         yes) targetlibav=yes ;;
         no)  targetlibav=no ;;
@@ -38,14 +38,16 @@ AC_ARG_ENABLE(libav,
     [targetlibav="no"])
 AM_CONDITIONAL([LIBAVCOND], [test x$targetlibav = xyes])
 AM_COND_IF([LIBAVCOND],[
+    AC_SUBST(EXT_PLGS, gstlibav)
     AC_SUBST(EXT_CFLAGS, -DENABLELIBAV)
 ])
 
+AC_SUBST(PKG_FFMPEG_PATH, '$(abs_srcdir)/subprojects/FFmpeg/dist/lib/pkgconfig')
 AC_SUBST(PKG_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/pkgconfig')
 AC_SUBST(PKG_GST_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig')
-
+AC_SUBST(PKG_GSTLIBAV_PATH, '$(abs_srcdir)/subprojects/gstreamer/libav_build/dist/lib/gstreamer-1.0/pkgconfig:$(abs_srcdir)/subprojects/gstreamer/libav_build/dist/lib/pkgconfig')
 AC_SUBST(PKG_V4L2_PATH, '$(abs_srcdir)/subprojects/v4l-utils/dist/lib/pkgconfig')
-AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH)')
+AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH):$(PKG_FFMPEG_PATH):$(PKG_GSTLIBAV_PATH)')
 
 
 AC_CONFIG_FILES([

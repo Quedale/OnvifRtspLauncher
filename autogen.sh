@@ -56,7 +56,6 @@ fi
 ################################################################
 git -C gstreamer pull 2> /dev/null || git clone -b 1.21.3 https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 cd gstreamer
-rm -rf build
 
 GST_DIR=$(pwd)
 # Add tinyalsa fallback subproject
@@ -85,55 +84,17 @@ echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 #   --prefix=$(pwd)/build/dist
 
 MESON_PARAMS=""
-# Im not sure how useful libav really is, but fails to compile on rpi
-if [ $ENABLE_LIBAV -eq 1 ]; then
-  MESON_PARAMS="$MESON_PARAMS -Dlibav=enabled"
-fi
 
 if [ $ENABLE_RPI -eq 1 ]; then
   MESON_PARAMS="$MESON_PARAMS -DFFmpeg:omx=enabled"
 fi
 
 # Force disable subproject features
-# MESON_PARAMS="$MESON_PARAMS -Dcairo:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dfdk-aac:build-programs=disabled"
-MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false" #This one did shrink the build
-# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_debug=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_assert=false" # remove for stable build
-# MESON_PARAMS="$MESON_PARAMS -Dglib:glib_checks=false" # remove for stable build
-# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:docs=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-devtools:tools=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:docs=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:examples=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-editing-services:tools=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:examples=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:doc=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:glib-checks=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:glib-asserts=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:extra-checks=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:examples=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:doc=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tools=disabled"
-# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffmpeg=disabled"
-# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffplay=disabled"
-# MESON_PARAMS="$MESON_PARAMS -DFFmpeg:ffprobe=disabled"
-MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dlibdrm:man-pages=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dopenh264:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dpcre2-10:tests=false"
-# MESON_PARAMS="$MESON_PARAMS -Dpixman:tests=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:docs=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:examples=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dtinyalsa:utils=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dtools=disabled"
-# MESON_PARAMS="$MESON_PARAMS -Dexamples=disabled"
+MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false"
+MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=false"
 MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
 
-#Blow is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
+#Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
 # This is to support v4l2h264enc element with capssetter
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 
@@ -141,6 +102,7 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
 
 # Customized build <2K file
+rm -rf build
 meson setup build \
   --buildtype=release \
   --strip \
@@ -200,6 +162,64 @@ meson setup build \
 meson compile -C build
 meson install -C build
 
+if [ $ENABLE_LIBAV -eq 1 ]; then
+  cd ..
+  #######################
+  #
+  # Custom FFmpeg build
+  #   For some reason, Gstreamer's meson dep doesn't build any codecs
+  #
+  #######################
+  git -C FFmpeg pull 2> /dev/null || git clone -b n5.1.2 https://github.com/FFmpeg/FFmpeg.git
+  cd FFmpeg
+
+  ./configure --prefix=$(pwd)/dist \
+      --disable-lzma \
+      --disable-doc \
+      --disable-shared \
+      --enable-static \
+      --enable-nonfree \
+      --enable-version3 \
+      --enable-gpl 
+  make -j$(nproc)
+  make install
+  rm -rf dist/lib/*.so
+  cd ..
+
+  #######################
+  #
+  # Rebuild gstreamer with libav with nofallback
+  #
+  #######################
+  #Rebuild with custom ffmpeg build
+  cd gstreamer
+  MESON_PARAMS="-Dlibav=enabled"
+  rm -rf libav_build
+  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
+  meson setup libav_build \
+  --buildtype=release \
+  --strip \
+  --default-library=static \
+  --wrap-mode=nofallback \
+  -Dauto_features=disabled \
+  $MESON_PARAMS \
+  --prefix=$GST_DIR/libav_build/dist \
+  --libdir=lib
+  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
+  meson compile -C libav_build
+  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
+  meson install -C libav_build
+
+  #Remove shared lib to force static resolution to .a
+  rm -rf $GST_DIR/libav_build/dist/lib/*.so
+  rm -rf $GST_DIR/libav_build/dist/lib/gstreamer-1.0/*.so
+fi
 
 if [ $ENABLE_RPI -eq 1 ]; then
   # OMX is build sperately, because it depends on a build variable defined in the shared build.
