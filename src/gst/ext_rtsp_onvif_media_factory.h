@@ -4,6 +4,7 @@
 #define __EXT_ONVIF_MEDIA_FACTORY_H__
 
 #include <gst/gst.h>
+#include "../v4l/v4l2-device.h"
 
 // #include <gst/rtsp-server/rtsp-server.h>
 #include <gst/rtsp-server/rtsp-onvif-media-factory.h>
@@ -52,15 +53,18 @@ void
 ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
 
 void 
-ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory * factory, const gint * width);
+ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory * factory, const gint width);
 
 void 
-ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory * factory, const gint * height);
+ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory * factory, const gint height);
 
 void 
-ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint * fps);
+ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint fps);
 
 void
 ext_rtsp_onvif_media_factory_set_video_encoder (ExtRTSPOnvifMediaFactory * factory, const gchar * video_encoder);
-    
+
+void 
+ext_rtsp_onvif_media_factory_set_v4l2_params(ExtRTSPOnvifMediaFactory * factory, v4l2ParameterResults * params);
+
 #endif

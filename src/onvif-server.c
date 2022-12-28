@@ -298,7 +298,7 @@ main (int argc, char *argv[])
         v4l2ParameterResults * ret_val = configure_v4l2_device(arguments.vdev, desires, RAW_BAD_MATCH);
         if(ret_val == NULL){
             g_printerr ("Unable to configure v4l2 source device...\n");
-            return NULL;
+            return 1;
         }
     
         ext_rtsp_onvif_media_factory_set_v4l2_params(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),ret_val);

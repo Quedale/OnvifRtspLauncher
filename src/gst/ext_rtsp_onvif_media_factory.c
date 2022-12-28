@@ -15,9 +15,9 @@ struct ExtRTSPOnvifMediaFactoryPrivate
 
     //Video output parameters
     gchar * video_device;
-    gint * width;
-    gint * height;
-    gint * fps;
+    gint width;
+    gint height;
+    gint fps;
     gchar * video_encoder;
 
     //Audio capture parameters
@@ -113,35 +113,35 @@ ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory *
 
 void
 ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory *
-    factory, const gint * width)
+    factory, const gint width)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
     GST_LOG("'%i'",width);
 
     g_mutex_lock (&factory->priv->lock);
-    factory->priv->width = (gint *) width;
+    factory->priv->width = width;
     g_mutex_unlock (&factory->priv->lock);
 }
 
 void
 ext_rtsp_onvif_media_factory_set_height (ExtRTSPOnvifMediaFactory *
-    factory, const gint * height)
+    factory, const gint height)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
     GST_LOG("'%i'",height);
 
     g_mutex_lock (&factory->priv->lock);
-    factory->priv->height = (gint *) height;
+    factory->priv->height = height;
     g_mutex_unlock (&factory->priv->lock);
 }
 
 void 
-ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint * fps){
+ext_rtsp_onvif_media_factory_set_fps (ExtRTSPOnvifMediaFactory * factory, const gint fps){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
     GST_LOG("'%i'",fps);
 
     g_mutex_lock (&factory->priv->lock);
-    factory->priv->fps = (gint *) fps;
+    factory->priv->fps = fps;
     g_mutex_unlock (&factory->priv->lock);
 }
 
@@ -154,9 +154,9 @@ ext_rtsp_onvif_media_factory_init (ExtRTSPOnvifMediaFactory * factory)
     //Defaults
     ext_rtsp_onvif_media_factory_set_video_device(factory,"test");
     ext_rtsp_onvif_media_factory_set_audio_device(factory,"test");
-    ext_rtsp_onvif_media_factory_set_width(factory,(gint *)640);
-    ext_rtsp_onvif_media_factory_set_height(factory,(gint *)480);
-    ext_rtsp_onvif_media_factory_set_fps(factory,(gint *)10);
+    ext_rtsp_onvif_media_factory_set_width(factory,640);
+    ext_rtsp_onvif_media_factory_set_height(factory,480);
+    ext_rtsp_onvif_media_factory_set_fps(factory,10);
 
     g_mutex_init (&factory->priv->lock);
 }
@@ -392,7 +392,7 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
             break;
         case V4L2_FMT_MJPEG: //TODO support mjpeg stream
         default:
-            strncpy(fourcc, (char *)dev_pixelformat, 4);
+            strncpy(fourcc, (char *)&dev_pixelformat, 4);
             GST_ERROR("Unsupported pixel format : [%s] %d",fourcc, dev_pixelformat);
             return NULL;
 
