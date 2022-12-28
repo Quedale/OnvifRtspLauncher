@@ -6,10 +6,14 @@
 typedef enum {
     //TODO Handle fallback where decode/encode would be possible
     //Intentionally not supporting scale up or inserting frame since it would increase bandwidth for no good reason
-    PERFECT =   1, //perfect match
-    GOOD =      2, //Dropping frames required
-    OK =        3, //Scaling down resolution required
-    BAD =       4  //Drop Frame and Scale down required
+    PERFECT =             1, //perfect match
+    GOOD =                2, //Dropping frames required
+    OK =                  3, //Scaling down resolution required
+    BAD =                 4, //Drop Frame and Scale down required
+    RAW_PERFECT =    5, // Raw capture - perfect match
+    RAW_GOOD =       6, // Raw capture - Dropping frames required
+    RAW_OK =         7, // Raw capture - Scaling down resolution required
+    RAW_BAD =        8  // Raw capture - Drop Frame and Scale down required
 } MatchTypes;
 
 typedef struct {
@@ -25,10 +29,17 @@ typedef struct {
   int good_matches_count;
   int ok_matches_count;
   int bad_matches_count;
+  int raw_good_matches_count;
+  int raw_ok_matches_count;
+  int raw_bad_matches_count;
   v4l2MatchResult * p_match; //perfect match
   v4l2MatchResult ** good_matches;
   v4l2MatchResult ** ok_matches;
   v4l2MatchResult ** bad_matches;
+  v4l2MatchResult * rp_match; //perfect match
+  v4l2MatchResult ** raw_good_matches;
+  v4l2MatchResult ** raw_ok_matches;
+  v4l2MatchResult ** raw_bad_matches;
 } v4l2MatchResults;
 
 v4l2MatchResults* v4l2MatchResult__create(); 

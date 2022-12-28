@@ -111,6 +111,7 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:pbtypes=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioresample=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioconvert=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:volume=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tcp=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:v4l2=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtsp=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtp=enabled"
@@ -120,6 +121,7 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:autodetect=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:pulse=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:interleave=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:audioparsers=enabled"
+MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:udp=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
@@ -138,8 +140,6 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
 
 #  -Dgst-plugins-base:overlaycomposition=enabled \
-#  -Dgst-plugins-base:tcp=enabled \
-#  -Dgst-plugins-good:udp=enabled \
 #  -Dgst-plugins-good:oss=enabled \
 #  -Dgst-plugins-good:oss4=enabled \
 #  -Dgst-plugins-bad:mpegtsmux=enabled \

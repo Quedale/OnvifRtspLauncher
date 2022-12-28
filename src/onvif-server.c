@@ -294,8 +294,8 @@ main (int argc, char *argv[])
         desires.desired_fps = arguments.fps;
         desires.desired_width = arguments.width;
         desires.desired_height = arguments.height;
-        desires.desired_pixelformat = V4L2_FMT_YUYV;
-        v4l2ParameterResults * ret_val = configure_v4l2_device("/dev/video0", desires, BAD_MATCH);
+        desires.desired_pixelformat = V4L2_PIX_FMT_H264; //TODO Support MJPEG input
+        v4l2ParameterResults * ret_val = configure_v4l2_device(arguments.vdev, desires, RAW_BAD_MATCH);
         if(ret_val == NULL){
             g_printerr ("Unable to configure v4l2 source device...\n");
             return NULL;

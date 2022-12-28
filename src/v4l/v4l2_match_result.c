@@ -15,6 +15,12 @@ void v4l2MatchResult__init(v4l2MatchResults* self) {
     self->ok_matches_count=0;
     self->bad_matches=malloc(0);
     self->bad_matches_count=0;
+    self->raw_good_matches=malloc(0);
+    self->raw_good_matches_count=0;
+    self->raw_ok_matches=malloc(0);
+    self->raw_ok_matches_count=0;
+    self->raw_bad_matches=malloc(0);
+    self->raw_bad_matches_count=0;
 }
 
 v4l2MatchResults* v4l2MatchResult__create() {
@@ -71,6 +77,19 @@ void v4l2MatchResult__insert_element(v4l2MatchResults* self, v4l2MatchResult * r
             self->bad_matches = v4l2MatchResult__insert_element_of_type(self,self->bad_matches,record,self->bad_matches_count, index);
             self->bad_matches_count++;
             break;
+        case RAW_GOOD:
+            self->raw_good_matches = v4l2MatchResult__insert_element_of_type(self,self->raw_good_matches,record,self->raw_good_matches_count, index);
+            self->raw_good_matches_count++;
+            break;
+        case RAW_OK: 
+            self->raw_ok_matches = v4l2MatchResult__insert_element_of_type(self,self->raw_ok_matches,record,self->raw_ok_matches_count, index);
+            self->raw_ok_matches_count++;
+            break;
+        case RAW_BAD:
+            self->raw_bad_matches = v4l2MatchResult__insert_element_of_type(self,self->raw_bad_matches,record,self->raw_bad_matches_count, index);
+            self->raw_bad_matches_count++;
+            break;
+        case RAW_PERFECT:
         case PERFECT:
         default:
             GST_DEBUG("Error : cant insert of this type.");
@@ -104,6 +123,30 @@ void v4l2MatchResult__clear(v4l2MatchResults* self, MatchTypes type){
             break;
         case PERFECT:
             free(self->p_match);
+            break;
+        case RAW_GOOD:
+            for(i=0; i < self->raw_good_matches_count; i++){
+                free(self->raw_good_matches[i]);
+            }
+            self->raw_good_matches_count = 0;
+            self->raw_good_matches = realloc(self->raw_good_matches,0);
+            break;
+        case RAW_OK:
+            for(i=0; i < self->raw_ok_matches_count; i++){
+                free(self->raw_ok_matches[i]);
+            }
+            self->raw_ok_matches_count = 0;
+            self->raw_ok_matches = realloc(self->raw_ok_matches,0);
+            break;
+        case RAW_BAD:
+            for(i=0; i < self->raw_bad_matches_count; i++){
+                free(self->raw_bad_matches[i]);
+            }
+            self->raw_bad_matches_count = 0;
+            self->raw_bad_matches = realloc(self->raw_bad_matches,0);
+            break;
+        case RAW_PERFECT:
+            free(self->rp_match);
             break;
         default:
             v4l2MatchResult__clear(self,PERFECT);

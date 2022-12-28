@@ -38,10 +38,11 @@ int SetVideoFMT(int fd, v4l2MatchResult * match)
     fmt.fmt.pix.pixelformat = match->pixel_format;
     if (-1 == xioctl(fd, VIDIOC_S_FMT, &fmt))
     {
-        perror("Setting Pixel Format");
+        strncpy(fourcc, (char *)&fmt.fmt.pix.pixelformat, 4);
+        GST_ERROR ("Setting Pixel Format [%s]",fourcc);
     }else{
         strncpy(fourcc, (char *)&fmt.fmt.pix.pixelformat, 4);
-        GST_DEBUG( "\nSelected Camera Mode:\n"
+        GST_DEBUG ( "\nSelected Camera Mode:\n"
             "  Width: %d\n"
             "  Height: %d\n"
             "  PixFmt: %s\n"
@@ -157,6 +158,36 @@ void find_compatible_format_frame_interval(unsigned int fd, struct v4l2_frmsizee
                 GST_ERROR("Unexpected outcome-------");
                 //Scaling up resolution uselessly will increase bandwidth for no good reason
             }
+        } else if(frmsize.pixel_format == V4L2_FMT_YUYV) { //TODO Test more compatible raw format
+            if(desires.desired_width == width &&
+                desires.desired_height == height &&
+                desires.desired_fps == dev_fps){
+                GST_DEBUG("RAW MATCH");
+                v4l2MatchResult * vret = create_v4l2_result(RAW_PERFECT,frmival,dev_fps);
+                ret->rp_match = vret;
+            } else if(desires.desired_width == width &&
+                desires.desired_height == height &&
+                desires.desired_fps <= dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(RAW_GOOD,frmival,dev_fps);
+                GST_DEBUG("RAW GOOD MATCH"); //Drop frames
+                v4l2MatchResult__insert_element(ret,vret,0);
+            }else if(desires.desired_width <= width &&
+                desires.desired_height <= height &&
+                desires.desired_fps == dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(RAW_OK,frmival,dev_fps);
+                GST_DEBUG("RAW OK MATCH"); //Scale down
+                v4l2MatchResult__insert_element(ret,vret,0);
+            } else if(desires.desired_width <= width &&
+                desires.desired_height <= height &&
+                desires.desired_fps <= dev_fps){
+                v4l2MatchResult * vret = create_v4l2_result(RAW_BAD,frmival,dev_fps);
+                GST_DEBUG("RAW BAD MATCH"); //Drop frames and Scale down
+                v4l2MatchResult__insert_element(ret,vret,0);
+            } else {
+                GST_ERROR("Unexpected outcome------- Transcode unsupported");
+                return;
+                //Scaling up resolution uselessly will increase bandwidth for no good reason
+            }
         } else {
             //TODO handle fallback where decoding/encoding would be required.
         }
@@ -254,6 +285,26 @@ v4l2ParameterResults * configure_v4l2_device(char * device, v4l2ParameterInput d
             //TODO Find match with closest resolution to minimize scale down over frame drops.
             //It takes less computing to drop frame and has lesser potential impact on image quality
             ret_val = create_return_result(results->bad_matches[0]);
+        } else if(results->rp_match != NULL){
+            GST_DEBUG("Found raw perfect match");
+            set_v4l2_match(fd, results->rp_match);
+            ret_val = create_return_result(results->rp_match);
+        } else if(scope >= GOOD_MATCH && results->raw_good_matches_count > 0){
+            GST_DEBUG("Found raw good match(s)");
+            set_v4l2_match(fd, results->raw_good_matches[0]);
+            //TODO Find match with closest framerate to drop as least as possible
+            ret_val = create_return_result(results->raw_good_matches[0]);
+        } else if(scope >= OK_MATCH && results->raw_ok_matches_count > 0){
+            GST_DEBUG("Found raw ok match(s)");
+            set_v4l2_match(fd, results->raw_ok_matches[0]);
+            //TODO Find match with closest resolution to minimize scale down
+            ret_val = create_return_result(results->raw_ok_matches[0]);
+        } else if(scope >= BAD_MATCH && results->raw_bad_matches_count > 0){
+            GST_DEBUG("Found raw bad match(s)");
+            set_v4l2_match(fd, results->raw_bad_matches[0]);
+            //TODO Find match with closest resolution to minimize scale down over frame drops.
+            //It takes less computing to drop frame and has lesser potential impact on image quality
+            ret_val = create_return_result(results->raw_bad_matches[0]);
         } else {
             GST_ERROR("No compatible v4l2 configuration match found.");
         }

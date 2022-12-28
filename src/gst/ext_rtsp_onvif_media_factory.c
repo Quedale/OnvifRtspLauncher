@@ -27,9 +27,39 @@ struct ExtRTSPOnvifMediaFactoryPrivate
 
 G_DEFINE_TYPE_WITH_PRIVATE (ExtRTSPOnvifMediaFactory, ext_rtsp_onvif_media_factory, GST_TYPE_RTSP_ONVIF_MEDIA_FACTORY);
 
+int is_suported_output_format(SupportedPixelFormats format){
+    switch(format){
+        case V4L2_FMT_H264: return TRUE;
+        case V4L2_FMT_MJPEG: //TODO Support mjpeg
+        default: return FALSE;
+    }
+}
+
+int is_suported_capture_format(SupportedPixelFormats format){
+    switch(format){
+        case V4L2_FMT_H264:
+        case V4L2_FMT_YUYV:
+            return TRUE;
+        case V4L2_FMT_MJPEG: //TODO support mjpeg stream
+        default:
+            GST_ERROR("Unsupported pixel format : %d",format);
+            return FALSE;
+    }
+}
+
 void 
 ext_rtsp_onvif_media_factory_set_v4l2_params(ExtRTSPOnvifMediaFactory * factory, v4l2ParameterResults * params){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
+    
+    if(!is_suported_capture_format(params->device_pixelformat)){
+        GST_ERROR("Unsupported pixel format : %d",params->device_pixelformat);
+        g_mutex_lock (&factory->priv->lock);
+        g_free (factory->priv->v4l2params);
+        factory->priv->v4l2params = NULL;
+        g_mutex_unlock (&factory->priv->lock);
+        return;
+    }
+
     if(params != NULL){
         GST_LOG("width : '%d'",params->device_width);
         GST_LOG("height : '%d'",params->device_height);
@@ -243,10 +273,11 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
         }
         
         //Set as last element for additional linking
-        last_element = venc_capsfilter;
+        return venc_capsfilter;
+    } else {
+        GST_ERROR("Video encoder required, but none defined.");
+        return NULL;
     }
-
-    return last_element;
 }
 
 static GstElement * 
@@ -302,27 +333,7 @@ priv_ext_rtsp_onvif_media_factory_add_videorate_element (ExtRTSPOnvifMediaFactor
 }
 
 static GstElement * 
-priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
-    //Create source
-    GstElement * last_element;
-
-    v4l2ParameterResults * input = factory->priv->v4l2params;
-    int dev_width;
-    int dev_height;
-    int dev_denominator;
-    int dev_numerator;
-    if(input == NULL){
-        dev_width = factory->priv->width;
-        dev_height = factory->priv->height;
-        dev_denominator = factory->priv->fps;
-        dev_numerator = 1;
-    } else {
-        dev_width = input->device_width;
-        dev_height = input->device_height;
-        dev_denominator = input->device_denominator;
-        dev_numerator = input->device_numerator;
-    }
-
+priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret, GstElement * last_element, unsigned int dev_pixelformat, unsigned int dev_denominator, unsigned int dev_numerator, unsigned int dev_width, unsigned int dev_height){
     GstElement * src;
     //TODO handle alternative sources like picamsrc
     if(!strcmp(factory->priv->video_device,"test")){
@@ -355,25 +366,40 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 
     GST_DEBUG("Setting Capture FPS [%d/%d]",dev_denominator,dev_numerator);
     //Setting Capture Caps filters
-    GstCaps *src_filtercaps = gst_caps_new_simple ("video/x-raw",
-        "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
-        "format", G_TYPE_STRING, "YUY2",
-        "width", G_TYPE_INT, dev_width,
-        "height", G_TYPE_INT, dev_height,
-        NULL);
+    GstCaps *src_filtercaps;
+    char fourcc[5] = {0};
+    switch(dev_pixelformat){
+        case V4L2_FMT_H264:
+            GST_DEBUG("Setting H264 Capture Caps");
+            src_filtercaps = gst_caps_new_simple("video/x-h264",
+                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
+                "profile", G_TYPE_STRING, "high",
+                "level", G_TYPE_STRING, "4",
+                "width", G_TYPE_INT, dev_width,
+                "height", G_TYPE_INT, dev_height,
+                NULL);
+            GstStructure * structure = gst_structure_new_from_string ("controls,video_bitrate=25000000");
+            g_object_set(G_OBJECT(src), "extra-controls", structure,NULL);
+            break;
+        case V4L2_FMT_YUYV:
+            GST_DEBUG("Setting Raw YUYV Capture Caps");
+            src_filtercaps = gst_caps_new_simple ("video/x-raw",
+                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
+                "format", G_TYPE_STRING, "YUY2",
+                "width", G_TYPE_INT, dev_width,
+                "height", G_TYPE_INT, dev_height,
+                NULL);
+            break;
+        case V4L2_FMT_MJPEG: //TODO support mjpeg stream
+        default:
+            strncpy(fourcc, (char *)dev_pixelformat, 4);
+            GST_ERROR("Unsupported pixel format : [%s] %d",fourcc, dev_pixelformat);
+            return NULL;
+
+    }
+
     g_object_set(G_OBJECT(src_capsfilter), "caps", src_filtercaps,NULL);
 
-    // //TODO handle h264 support native cam live below and skip encoder creation
-    // //Im currently unable to test this as my current installation is unable to set this pixelformat type "VIDIOC_S_FMT: failed: Invalid argument"
-    // GstCaps *src_filtercaps = gst_caps_new_simple ("video/x-h264",
-    //     "profile", G_TYPE_STRING, "main",
-    //     "level", G_TYPE_STRING, "4",
-    //     "framerate", GST_TYPE_FRACTION, factory->priv->fps, 1,
-    //     "format", G_TYPE_STRING, "YUY2",
-    //     "width", G_TYPE_INT, factory->priv->width,
-    //     "height", G_TYPE_INT, factory->priv->height,
-    //     NULL);
-    // g_object_set(G_OBJECT(src_capsfilter), "caps", src_filtercaps,NULL);
 
     //Adding source elements to bin
     gst_bin_add_many (GST_BIN (ret), src_capsfilter, NULL);
@@ -384,13 +410,44 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
         return NULL;
     }
 
-    last_element = src_capsfilter;
+    return src_capsfilter;
+}
 
+static GstElement * 
+priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
+    //Create source
+    GstElement * last_element;
+
+    v4l2ParameterResults * input = factory->priv->v4l2params;
+    int dev_width;
+    int dev_height;
+    int dev_denominator;
+    int dev_numerator;
+    if(input == NULL){
+        dev_width = factory->priv->width;
+        dev_height = factory->priv->height;
+        dev_denominator = factory->priv->fps;
+        dev_numerator = 1;
+    } else {
+        dev_width = input->device_width;
+        dev_height = input->device_height;
+        dev_denominator = input->device_denominator;
+        dev_numerator = input->device_numerator;
+    }
+
+    //Create Capture elements
+    last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, input->device_pixelformat,dev_denominator,dev_numerator,dev_width,dev_height);
+    if(last_element == NULL){
+        return NULL;
+    }
+
+    //Adjust device framerate to desired stream framerate
     last_element = priv_ext_rtsp_onvif_media_factory_add_videorate_element(factory,ret,last_element, input);
     if(last_element == NULL){
         return NULL;
     }
 
+    //Adjust device resolution to desired stream resolution
     last_element = priv_ext_rtsp_onvif_media_factory_add_videoscale_element(factory,ret,last_element, dev_width, dev_height);
     if(last_element == NULL){
         return NULL;
@@ -400,7 +457,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 
     //Validate source elements
     if (!vq) {
-        g_printerr ("One of the source elements wasn't created... Exiting\n");
+        GST_ERROR ("A queue element wasn't created... Exiting\n");
         return NULL;
     }
     
@@ -412,10 +469,17 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
         GST_ERROR ("Linking source part (A)-2 Fail...");
         return NULL;
     }
+    last_element = vq;
 
-    last_element = priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements(factory,ret, vq);
-    if(last_element == NULL){
-        return NULL;
+    //Check if device format is compatible with stream output
+    if(!is_suported_output_format(input->device_pixelformat)){
+        GST_WARNING("Using video encoder!!!");
+        last_element = priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements(factory,ret, last_element);
+        if(last_element == NULL){
+            return NULL;
+        }
+    } else {
+        GST_WARNING("Using native video stream!!!");
     }
 
     //Create rtp payload sink
@@ -425,7 +489,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
     g_object_set(G_OBJECT(hpay), "pt", 96,NULL);
 
     if (!hparse || !hpay) {
-        g_printerr ("One of the v4l2h264enc elements wasn't created... Exiting\n");
+        g_printerr ("One of the rtppayload elements wasn't created... Exiting\n");
         return NULL;
     }
 
@@ -472,7 +536,7 @@ priv_ext_rtsp_onvif_media_factory_create_element (ExtRTSPOnvifMediaFactory * fac
     desires.desired_fps = factory->priv->fps;
     desires.desired_width = factory->priv->width;
     desires.desired_height = factory->priv->height;
-    desires.desired_pixelformat = V4L2_FMT_YUYV;
+    desires.desired_pixelformat = V4L2_PIX_FMT_H264;
     //Force configure v4l2 if it wasn't done already
     if(strcmp(factory->priv->video_device,"test") && factory->priv->v4l2params == NULL){
         v4l2ParameterResults * ret_val = configure_v4l2_device(factory->priv->video_device, desires, BAD_MATCH);

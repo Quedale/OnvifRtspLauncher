@@ -24,6 +24,13 @@ AM_COND_IF([RPICOND],[
     AC_SUBST(EXT_STC_LIBS, -lgstomx)
     AC_SUBST(EXT_DYN_LIBS, `PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig pkg-config --libs mmal`)
     AC_SUBST(EXT_CFLAGS, -DENABLERPI)
+],[
+    AC_MSG_NOTICE(Disabled OMX and RPI Camera support)
+    AC_SUBST(PKG_OMX_PATH)
+    AC_SUBST(EXT_CFLAGS)
+    AC_SUBST(EXT_DYN_LIBS)
+    AC_SUBST(EXT_STC_LIBS)
+    AC_SUBST(EXT_PLGS)
 ])
 
 AC_ARG_ENABLE(libav,
@@ -38,8 +45,13 @@ AC_ARG_ENABLE(libav,
     [targetlibav="no"])
 AM_CONDITIONAL([LIBAVCOND], [test x$targetlibav = xyes])
 AM_COND_IF([LIBAVCOND],[
+    AC_MSG_NOTICE(Enabled Libav FFmpeg support.)
     AC_SUBST(EXT_PLGS, gstlibav)
     AC_SUBST(EXT_CFLAGS, -DENABLELIBAV)
+],[
+    AC_MSG_NOTICE(Disabled Libav FFmpeg support.)
+    AC_SUBST(EXT_PLGS)
+    AC_SUBST(EXT_CFLAGS)
 ])
 
 AC_SUBST(PKG_FFMPEG_PATH, '$(abs_srcdir)/subprojects/FFmpeg/dist/lib/pkgconfig')

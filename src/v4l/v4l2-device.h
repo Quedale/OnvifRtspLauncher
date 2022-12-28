@@ -4,17 +4,24 @@
 #include <linux/videodev2.h>
 
 typedef enum { 
-    V4L2_FMT_YUYV = V4L2_PIX_FMT_YUYV,
+    V4L2_FMT_YUYV = V4L2_PIX_FMT_YUYV //TODO detect fourcc to support YUV raw videos
+} SupportedRawFormats;
+
+typedef enum { 
     V4L2_FMT_H264 = V4L2_PIX_FMT_H264,
     V4L2_FMT_MJPEG = V4L2_PIX_FMT_MJPEG
 } SupportedPixelFormats;
 
 typedef enum {
-    PERFECT_MATCH   = 1,
-    GOOD_MATCH      = 2,
-    OK_MATCH        = 3,
-    BAD_MATCH       = 4,
-    ANY_MATCH       = 5
+    PERFECT_MATCH       = 1,
+    GOOD_MATCH          = 2,
+    OK_MATCH            = 3,
+    BAD_MATCH           = 4,
+    RAW_PERFECT_MATCH   = 5,
+    RAW_GOOD_MATCH      = 6,
+    RAW_OK_MATCH        = 7,
+    RAW_BAD_MATCH       = 8,
+    ANY_MATCH           = 5
 } MatchScope;
 
 typedef struct {

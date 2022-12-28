@@ -22,7 +22,7 @@ GST_PLUGIN_STATIC_DECLARE(pbtypes);
 GST_PLUGIN_STATIC_DECLARE(playback);
 GST_PLUGIN_STATIC_DECLARE(rawparse);
 // GST_PLUGIN_STATIC_DECLARE(subparse); gstsubparse
-// GST_PLUGIN_STATIC_DECLARE(tcp);
+GST_PLUGIN_STATIC_DECLARE(tcp);
 GST_PLUGIN_STATIC_DECLARE(typefindfunctions);
 GST_PLUGIN_STATIC_DECLARE(videoconvertscale);
 GST_PLUGIN_STATIC_DECLARE(videorate); // gstvideorate
@@ -77,7 +77,7 @@ GST_PLUGIN_STATIC_DECLARE(rtsp);
 // GST_PLUGIN_STATIC_DECLARE(shapewipe); gstshapewipe
 // GST_PLUGIN_STATIC_DECLARE(smpte); gstsmpte
 // GST_PLUGIN_STATIC_DECLARE(spectrum); gstspectrum
-// GST_PLUGIN_STATIC_DECLARE(udp);
+GST_PLUGIN_STATIC_DECLARE(udp);
 // GST_PLUGIN_STATIC_DECLARE(videobox); gstvideobox
 // GST_PLUGIN_STATIC_DECLARE(videocrop); gstvideocrop
 // GST_PLUGIN_STATIC_DECLARE(videofilter); gstvideofilter
@@ -230,7 +230,7 @@ onvif_init_static_plugins (void)
     GST_PLUGIN_STATIC_REGISTER(playback);
     GST_PLUGIN_STATIC_REGISTER(rawparse);
     // GST_PLUGIN_STATIC_REGISTER(subparse); gstsubparse
-    // GST_PLUGIN_STATIC_REGISTER(tcp);
+    GST_PLUGIN_STATIC_REGISTER(tcp);
     GST_PLUGIN_STATIC_REGISTER(typefindfunctions);
     GST_PLUGIN_STATIC_REGISTER(videoconvertscale);
     GST_PLUGIN_STATIC_REGISTER(videorate); // gstvideorate
@@ -285,7 +285,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(shapewipe); gstshapewipe
     // GST_PLUGIN_STATIC_REGISTER(smpte); gstsmpte
     // GST_PLUGIN_STATIC_REGISTER(spectrum); gstspectrum
-    // GST_PLUGIN_STATIC_REGISTER(udp);
+    GST_PLUGIN_STATIC_REGISTER(udp);
     // GST_PLUGIN_STATIC_REGISTER(videobox); gstvideobox
     // GST_PLUGIN_STATIC_REGISTER(videocrop); gstvideocrop
     // GST_PLUGIN_STATIC_REGISTER(videofilter); gstvideofilter
