@@ -183,7 +183,6 @@ main (int argc, char *argv[])
     GstRTSPMountPoints *mounts;
     GstRTSPMediaFactory *factory;
     struct arguments arguments;
-    char *strbin;
 
     gst_init (&argc, &argv);
 

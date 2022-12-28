@@ -35,7 +35,7 @@ int is_suported_output_format(SupportedPixelFormats format){
     }
 }
 
-int is_suported_capture_format(SupportedPixelFormats format){
+int is_suported_capture_format(int format){
     switch(format){
         case V4L2_FMT_H264:
         case V4L2_FMT_YUYV:
@@ -416,7 +416,7 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
     //Create source
-    GstElement * last_element;
+    GstElement * last_element= {0};
 
     v4l2ParameterResults * input = factory->priv->v4l2params;
     int dev_width;
@@ -655,13 +655,6 @@ ext_rtsp_onvif_media_factory_create_element (GstRTSPMediaFactory * factory, cons
 
     return element;
 
-  /* ERRORS */
-no_launch:
-    {
-        GST_ERROR ("no launch line specified");
-        g_free (launch);
-        return NULL;
-    }
 parse_error:
     {
         GST_ERROR ("could not parse launch syntax (%s): %s", launch,

@@ -28,7 +28,6 @@ int SetVideoFMT(int fd, v4l2MatchResult * match)
 {
     GST_DEBUG("---------- Setting Device FMT [%d/%d] ----------", match->width,match->height);
     /* set framerate */
-    int i;
     struct v4l2_format fmt;
     memset(&fmt,0,sizeof(fmt));
     char fourcc[5] = {0};
@@ -201,7 +200,6 @@ void find_compatible_format_frame_interval(unsigned int fd, struct v4l2_frmsizee
 }
 
 void find_compatible_format_frame_size(int fd, struct v4l2_fmtdesc fmtdesc, v4l2ParameterInput desires, v4l2MatchResults * ret){
-    unsigned int width=0, height=0;;
     struct v4l2_frmsizeenum frmsize;
     memset(&frmsize,0,sizeof(frmsize));
     frmsize.pixel_format = fmtdesc.pixelformat;//V4L2_PIX_FMT_MJPEG;
