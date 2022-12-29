@@ -41,14 +41,20 @@ Your program description.
 ```
 
 # Build Dependencies
-Install the latest build tools from pip
+Note that I don't like depending on sudo. I will eventually get around to identifying and building missing dependencies.
+
+Install the latest build tools from pip and apt
 ```
 sudo apt install python3-pip
 python3 -m pip install pip --upgrade
-python3 -m pip install setuptools
 python3 -m pip install meson
 python3 -m pip install ninja
-python3 -m pip install libtool
+sudo apt install libtool
+sudo apt install flex
+sudo apt install bison
+sudo apt install libasound2-dev
+sudo apt install libpulse-dev
+sudo apt install libgudev-1.0-dev
 ```
 I'm not sure if this is true for all distros, but this is required to get the new binary in the system's PATH
 ```
