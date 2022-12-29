@@ -1,6 +1,7 @@
 #!/bin/bash
 ENABLE_RPI=0
 ENABLE_LIBAV=0
+ENABLE_CLIENT=0
 i=1;
 for arg in "$@"
 do
@@ -8,6 +9,8 @@ do
         ENABLE_LIBAV=1
     elif [ "$arg" == "--enable-rpi" ]; then
         ENABLE_RPI=1
+    elif [ "$arg" == "--enable-client" ]; then
+        ENABLE_CLIENT=1
     fi
     i=$((i + 1));
 done
@@ -59,10 +62,10 @@ cd gstreamer
 
 GST_DIR=$(pwd)
 # Add tinyalsa fallback subproject
-echo "[wrap-git]" > subprojects/tinyalsa.wrap
-echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
-echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
-echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
+# echo "[wrap-git]" > subprojects/tinyalsa.wrap
+# echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
+# echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
+# echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
 
 # Full Build >9k Files
 # meson build \
@@ -93,7 +96,7 @@ MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
 MESON_PARAMS="$MESON_PARAMS -Dbase=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgood=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dbad=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
+# MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgpl=enabled"
 MESON_PARAMS="$MESON_PARAMS -Drtsp_server=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:app=enabled"
@@ -101,8 +104,10 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:typefind=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audiotestsrc=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videotestsrc=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:playback=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:x11=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:xvideo=enabled"
+if [ $ENABLE_CLIENT -eq 1 ]; then
+  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:x11=enabled"
+  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:xvideo=enabled"
+fi
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:alsa=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videoconvertscale=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videorate=enabled"
@@ -126,11 +131,11 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:switchbin=enabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:switchbin=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
 
 #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
 # This is to support v4l2h264enc element with capssetter

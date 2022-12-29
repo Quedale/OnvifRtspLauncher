@@ -13,24 +13,24 @@ AC_ARG_ENABLE(rpi,
         no)  targetrpi=no ;;
         true) targetrpi=yes ;;
         false)  targetrpi=no ;;
-        *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-rpi]) ;;
         esac],
     [targetrpi="no"])
 AM_CONDITIONAL([RPICOND], [test x$targetrpi = xyes])
 AM_COND_IF([RPICOND],[
     AC_MSG_NOTICE(Enabled OMX and RPI Camera support)
     AC_SUBST(PKG_OMX_PATH, '$(abs_srcdir)/subprojects/gstreamer/build_omx/dist/lib/gstreamer-1.0/pkgconfig')
-    AC_SUBST(EXT_PLGS, gstrpicamsrc)
-    AC_SUBST(EXT_STC_LIBS, -lgstomx)
-    AC_SUBST(EXT_DYN_LIBS, `PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig pkg-config --libs mmal`)
-    AC_SUBST(EXT_CFLAGS, -DENABLERPI)
+    AC_SUBST(OMX_PKG, gstrpicamsrc)
+    AC_SUBST(OMX_LIBS, -lgstomx)
+    AC_SUBST(OMX_DYN_LIBS, `PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig pkg-config --libs mmal`)
+    AC_SUBST(OMX_CFLAGS, -DENABLERPI)
 ],[
     AC_MSG_NOTICE(Disabled OMX and RPI Camera support)
     AC_SUBST(PKG_OMX_PATH)
-    AC_SUBST(EXT_CFLAGS)
-    AC_SUBST(EXT_DYN_LIBS)
-    AC_SUBST(EXT_STC_LIBS)
-    AC_SUBST(EXT_PLGS)
+    AC_SUBST(OMX_PKG)
+    AC_SUBST(OMX_LIBS)
+    AC_SUBST(OMX_DYN_LIBS)
+    AC_SUBST(OMX_CFLAGS)
 ])
 
 AC_ARG_ENABLE(libav,
@@ -40,18 +40,37 @@ AC_ARG_ENABLE(libav,
         no)  targetlibav=no ;;
         true) targetlibav=yes ;;
         false)  targetlibav=no ;;
-        *) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-libav]) ;;
         esac],
     [targetlibav="no"])
 AM_CONDITIONAL([LIBAVCOND], [test x$targetlibav = xyes])
 AM_COND_IF([LIBAVCOND],[
     AC_MSG_NOTICE(Enabled Libav FFmpeg support.)
-    AC_SUBST(EXT_PLGS, gstlibav)
-    AC_SUBST(EXT_CFLAGS, -DENABLELIBAV)
+    AC_SUBST(LIBAV_LIB, gstlibav)
+    AC_SUBST(LIBAV_CFLAGS, -DENABLELIBAV)
 ],[
     AC_MSG_NOTICE(Disabled Libav FFmpeg support.)
-    AC_SUBST(EXT_PLGS)
-    AC_SUBST(EXT_CFLAGS)
+    AC_SUBST(LIBAV_LIB)
+    AC_SUBST(LIBAV_CFLAGS)
+])
+
+AC_ARG_ENABLE(client,
+    [AS_HELP_STRING([--enable-client],[Enable ONVIF client tool. @<:@default=no@:>@.])],
+    [case "${enableval}" in
+        yes) targetclient=yes ;;
+        no)  targetclient=no ;;
+        true) targetclient=yes ;;
+        false)  targetclient=no ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-client]) ;;
+        esac],
+    [targetclient="no"])
+AM_CONDITIONAL([CLIENTCOND], [test x$targetclient = xyes])
+AM_COND_IF([CLIENTCOND],[
+    AC_MSG_NOTICE(Enabled Client Tool.)
+    AC_SUBST(CLIENT_PROG, onvifclient)
+],[
+    AC_MSG_NOTICE(Disabled Client Tool.)
+    AC_SUBST(CLIENT_PROG)
 ])
 
 AC_SUBST(PKG_FFMPEG_PATH, '$(abs_srcdir)/subprojects/FFmpeg/dist/lib/pkgconfig')
