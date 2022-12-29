@@ -44,7 +44,7 @@ const char *argp_program_bug_address = "<your@email.address>";
 static char doc[] = "Your program description.";
 static struct argp_option options[] = { 
     { "video", 'v', "VIDEO", 0, "Input video device. (Default: /dev/video0)"},
-    { "audio", 'a', "AUDIO", 0, "Input audio device. (Default: auto)"},
+    { "audio", 'a', "AUDIO", 0, "Input audio device. (Default: autoaudiosrc)"},
     { "encoder", 'e', "ENCODER", 0, "Gstreamer encoder. (Default: auto)"},
     { "width", 'w', "WIDTH", 0, "Video output width. (Default: 640)"},
     { "height", 'h', "HEIGHT", 0, "Video output height. (Default: 480)"},
@@ -192,7 +192,7 @@ main (int argc, char *argv[])
     gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
 
     arguments.vdev = "/dev/video0";
-    arguments.adev = NULL;
+    arguments.adev = "autoaudiosrc";
     arguments.width = 640;
     arguments.height = 480;
     arguments.fps = 10;

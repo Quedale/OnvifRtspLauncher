@@ -54,6 +54,132 @@ fi
 
 ################################################################
 # 
+#    Build gudev-1.0 dependency
+#   sudo apt install libgudev-1.0-dev (tested 237)
+# 
+################################################################
+PKG_GUDEV=$SCRT_DIR/subprojects/libgudev/build/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV \
+pkg-config --exists --print-errors "gudev-1.0 >= 237"
+ret=$?
+if [ $ret != 0 ]; then 
+  git -C libgudev pull 2> /dev/null || git clone -b 237 https://gitlab.gnome.org/GNOME/libgudev.git
+  cd libgudev
+  rm -rf build
+  meson setup build \
+    --default-library=static \
+    -Dtests=disabled \
+    -Dintrospection=disabled \
+    -Dvapi=disabled \
+    --prefix=$(pwd)/build/dist \
+    --libdir=lib
+
+  meson compile -C build
+  meson install -C build
+else
+  echo "gudev-1.0 already found."
+fi
+
+################################################################
+# 
+#    Build alsa-lib dependency
+#   sudo apt install llibasound2-dev (tested 1.2.7.2)
+# 
+################################################################
+PKG_ALSA=$SCRT_DIR/subprojects/alsa-lib/build/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_ALSA \
+pkg-config --exists --print-errors "alsa >= 1.2.7.2"
+ret=$?
+if [ $ret != 0 ]; then  
+  git -C alsa-lib pull 2> /dev/null || git clone -b v1.2.8 git://git.alsa-project.org/alsa-lib.git
+  cd alsa-lib
+  autoreconf -vif
+  ./configure --prefix=$(pwd)/build/dist --enable-static=yes --enable-shared=yes
+  make -j$(nproc)
+  make install
+  cd ..
+else
+  echo "alsa-lib already found."
+fi
+
+################################################################
+# 
+#    Build libpulse dependency
+#   sudo apt install libpulse-dev (tested 16.1)
+# 
+################################################################
+PKG_PULSE=$SCRT_DIR/subprojects/pulseaudio/build/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
+pkg-config --exists --print-errors "libpulse >= 16.1"
+ret=$?
+if [ $ret != 0 ]; then 
+  PKG_LIBSNDFILE=$SCRT_DIR/subprojects/libsndfile/dist/lib/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+  pkg-config --exists --print-errors "sndfile >= 1.2.0"
+  ret=$?
+  if [ $ret != 0 ]; then 
+    git -C libsndfile pull 2> /dev/null || git clone -b 1.2.0 https://github.com/libsndfile/libsndfile.git
+    cd libsndfile
+    # autoreconf -vif
+    cmake --target clean
+    cmake -G "Unix Makefiles" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$(pwd)/dist" \
+        -DBUILD_EXAMPLES=off \
+        -DBUILD_TESTING=off \
+        -DBUILD_SHARED_LIBS=on \
+        -DINSTALL_PKGCONFIG_MODULE=on \
+        -DINSTALL_MANPAGES=off 
+    make -j$(nproc)
+    make install
+    cd ..
+  else
+    echo "sndfile already found."
+  fi
+
+  PKG_CHECK=$SCRT_DIR/subprojects/check/build/dist/lib/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
+  pkg-config --exists --print-errors "check >= 0.15.2"
+  ret=$?
+  if [ $ret != 0 ]; then 
+    git -C check pull 2> /dev/null || git clone -b 0.15.2 https://github.com/libcheck/check.git
+    cd check
+    autoreconf -vif
+    ./configure --prefix=$(pwd)/build/dist --enable-static=yes --enable-shared=no --enable-build-docs=no --enable-timeout-tests=no
+    make -j$(nproc)
+    make install
+    cd ..
+  else
+    echo "check already found."
+  fi
+
+  git -C pulseaudio pull 2> /dev/null || git clone -b v16.1 https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git
+  cd pulseaudio
+  rm -rf build
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
+  meson setup build \
+    --default-library=static \
+    -Ddaemon=false \
+    -Ddoxygen=false \
+    -Dman=false \
+    -Dtests=false \
+    -Ddatabase=simple \
+    -Dbashcompletiondir=no \
+    -Dzshcompletiondir=no \
+    --prefix=$(pwd)/build/dist \
+    --libdir=lib
+
+  meson compile -C build
+  meson install -C build
+  cd ..
+else
+  echo "libpulse already found."
+fi
+
+
+################################################################
+# 
 #    Build Gstreamer dependency
 # 
 ################################################################
@@ -152,6 +278,7 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
 
 # Customized build <2K file
 rm -rf build
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE \
 meson setup build \
   --buildtype=release \
   --strip \

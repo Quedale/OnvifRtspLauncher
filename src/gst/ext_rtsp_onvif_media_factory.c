@@ -506,7 +506,12 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
-    GstElement * audio_src = gst_element_factory_make ("audiotestsrc", "audio_src");
+    GstElement * audio_src;
+    if(!strcmp(factory->priv->audio_device,"test")){
+        audio_src = gst_element_factory_make ("audiotestsrc", "audio_src");
+    } else {
+        audio_src = gst_element_factory_make (factory->priv->audio_device, "audio_src");
+    }
     GstElement * audio_enc = gst_element_factory_make ("mulawenc", "audio_enc");
     GstElement * audio_pay = gst_element_factory_make ("rtppcmupay", "pay1");
 
