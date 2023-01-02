@@ -28,8 +28,69 @@ autoconf
 automake --add-missing
 autoreconf -i
 
+
+checkProg () {
+    local name args path # reset first
+    local "${@}"
+
+    if !PATH=${path} command -v ${name} &> /dev/null
+    then
+        # echo "not found"
+        return #Prog not found
+    else
+        PATH=${path} command ${name} ${args} &> /dev/null
+        status=$?
+        if [[ $status -eq 0 ]]; then
+            echo "Working"
+        else
+            # echo "failed ${path}"
+            return #Prog failed
+        fi
+    fi
+}
+
 mkdir -p subprojects
 cd subprojects
+
+################################################################
+# 
+#    Build gettext dependency
+#   sudo apt install gettext (tested 1.16.3)
+# 
+################################################################
+# PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig \
+# pkg-config --exists --print-errors "libv4l2 >= 1.16.3"
+# ret=$?
+# if [ $ret != 0 ]; then 
+PATH=$PATH:$SCRT_DIR/subprojects/gettext/dist/bin
+if [ -z "$(checkProg name='gettext' args='--version' path=$PATH)" ]; then
+  echo "not found gettext"
+
+  PATH=$PATH:$SCRT_DIR/subprojects/fpc-3.2.2.x86_64-linux/dist/bin
+  if [ -z "$(checkProg name='ppcx64' args='-iW' path=$PATH)" ] && [ -z "$(checkProg name='ppcx86' args='-iW' path=$PATH)" ]; then
+    wget https://sourceforge.net/projects/freepascal/files/Linux/3.2.2/fpc-3.2.2.x86_64-linux.tar
+    tar xf fpc-3.2.2.x86_64-linux.tar
+    rm fpc-3.2.2.x86_64-linux.tar
+    cd fpc-3.2.2.x86_64-linux
+    echo $(pwd)/dist | ./install.sh
+    cd ..
+  else
+    echo "fpc found"
+  fi
+
+  git -C gnulib pull 2> /dev/null || git clone https://git.savannah.gnu.org/git/gnulib.git
+  git -C gettext pull 2> /dev/null || git clone -b v0.21.1 git://git.savannah.gnu.org/gettext.git 
+  cd gettext
+  GNULIB_SRCDIR=$(pwd)/../gnulib \
+  ./autogen.sh
+  make distclean
+  ./configure --prefix=$(pwd)/dist/usr/local MAKEINFO=true
+  make -j$(nproc)
+  make install-exec
+
+else
+  echo "gettext already found."
+fi
 
 ################################################################
 # 
@@ -58,14 +119,168 @@ fi
 #   sudo apt install libgudev-1.0-dev (tested 237)
 # 
 ################################################################
+PKG_UDEV=$SCRT_DIR/subprojects/systemd/build/dist/usr/lib/pkgconfig
 PKG_GUDEV=$SCRT_DIR/subprojects/libgudev/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV \
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV \
 pkg-config --exists --print-errors "gudev-1.0 >= 237"
 ret=$?
 if [ $ret != 0 ]; then 
+
+  # TODO Check for python package
+  # #libudev
+  ##if run_command(python, '-c', 'import jinja2', check : false).returncode() != 0
+  # git -C jinja pull 2> /dev/null || git clone -b 3.1.2 https://github.com/pallets/jinja.git
+  # cd jinja
+  # python3 setup.py install --user
+  # cd ..
+
+  PKG_LIBCAP=$SCRT_DIR/subprojects/libcap/dist/lib64/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
+  pkg-config --exists --print-errors "libcap >= 2.53" # Or check for sys/capability.h
+  ret=$?
+  if [ $ret != 0 ]; then 
+    git -C libcap pull 2> /dev/null || git clone -b libcap-2.53  git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git
+    cd libcap
+    make -j$(nproc)
+    make install DESTDIR=$(pwd)/dist
+    cd ..
+  else
+    echo "libcap already found."
+  fi
+
+
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
+  pkg-config --exists --print-errors "libudev >= 252" # Or check for sys/capability.h
+  ret=$?
+  if [ $ret != 0 ]; then 
+    git -C systemd pull 2> /dev/null || git clone -b v252 https://github.com/systemd/systemd.git
+    cd systemd
+    rm -rf build
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
+    C_INCLUDE_PATH=$SCRT_DIR/subprojects/libcap/dist/usr/include \
+    meson setup build \
+      --default-library=static \
+      -Dauto_features=disabled \
+      -Dmode=developer \
+      -Dlink-udev-shared=false \
+      -Dlink-systemctl-shared=false \
+      -Dlink-networkd-shared=false \
+      -Dlink-timesyncd-shared=false \
+      -Dlink-journalctl-shared=false \
+      -Dlink-boot-shared=false \
+      -Dfirst-boot-full-preset=false \
+      -Dstatic-libsystemd=false \
+      -Dstatic-libudev=true \
+      -Dstandalone-binaries=false \
+      -Dinitrd=false \
+      -Dcompat-mutable-uid-boundaries=false \
+      -Dnscd=false \
+      -Ddebug-shell='' \
+      -Ddebug-tty='' \
+      -Dutmp=false \
+      -Dhibernate=false \
+      -Dldconfig=false \
+      -Dresolve=false \
+      -Defi=false \
+      -Dtpm=false \
+      -Denvironment-d=false \
+      -Dbinfmt=false \
+      -Drepart=false \
+      -Dsysupdate=false \
+      -Dcoredump=false \
+      -Dpstore=false \
+      -Doomd=false \
+      -Dlogind=false \
+      -Dhostnamed=false \
+      -Dlocaled=false \
+      -Dmachined=false \
+      -Dportabled=false \
+      -Dsysext=false \
+      -Duserdb=false \
+      -Dhomed=false \
+      -Dnetworkd=false \
+      -Dtimedated=false \
+      -Dtimesyncd=false \
+      -Dremote=false \
+      -Dcreate-log-dirs=false \
+      -Dnss-myhostname=false \
+      -Dnss-mymachines=false \
+      -Dnss-resolve=false \
+      -Dnss-systemd=false \
+      -Drandomseed=false \
+      -Dbacklight=false \
+      -Dvconsole=false \
+      -Dquotacheck=false \
+      -Dsysusers=false \
+      -Dtmpfiles=false \
+      -Dimportd=false \
+      -Dhwdb=false \
+      -Drfkill=false \
+      -Dxdg-autostart=false \
+      -Dman=false \
+      -Dhtml=false \
+      -Dtranslations=false \
+      -Dinstall-sysconfdir=false \
+      -Dseccomp=false \
+      -Dselinux=false \
+      -Dapparmor=false \
+      -Dsmack=false \
+      -Dpolkit=false \
+      -Dima=false \
+      -Dacl=false \
+      -Daudit=false \
+      -Dblkid=false \
+      -Dfdisk=false \
+      -Dkmod=false \
+      -Dpam=false \
+      -Dpwquality=false \
+      -Dmicrohttpd=false \
+      -Dlibcryptsetup=false \
+      -Dlibcurl=false \
+      -Didn=false \
+      -Dlibidn2=false \
+      -Dlibidn=false \
+      -Dlibiptc=false \
+      -Dqrencode=false \
+      -Dgcrypt=false \
+      -Dgnutls=false \
+      -Dopenssl=false \
+      -Dcryptolib=auto \
+      -Dp11kit=false \
+      -Dlibfido2=false \
+      -Dtpm2=false \
+      -Delfutils=false \
+      -Dzlib=false \
+      -Dbzip2=false \
+      -Dxz=false \
+      -Dlz4=false \
+      -Dzstd=false \
+      -Dxkbcommon=false \
+      -Dpcre2=false \
+      -Dglib=false \
+      -Ddbus=false \
+      -Dgnu-efi=false \
+      -Dtests=false \
+      -Durlify=false \
+      -Danalyze=false \
+      -Dbpf-framework=false \
+      -Dkernel-install=false \
+      --libdir=lib
+
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
+    C_INCLUDE_PATH=$SCRT_DIR/subprojects/libcap/dist/usr/include \
+    LIBRARY_PATH=$SCRT_DIR/subprojects/libcap/dist/lib64 \
+    meson compile -C build
+    DESTDIR=$(pwd)/build/dist meson install -C build
+    cd ..
+  else
+    echo "libudev already found."
+  fi
+
   git -C libgudev pull 2> /dev/null || git clone -b 237 https://gitlab.gnome.org/GNOME/libgudev.git
   cd libgudev
   rm -rf build
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
   meson setup build \
     --default-library=static \
     -Dtests=disabled \
@@ -74,8 +289,12 @@ if [ $ret != 0 ]; then
     --prefix=$(pwd)/build/dist \
     --libdir=lib
 
+  C_INCLUDE_PATH=$SCRT_DIR/subprojects/systemd/build/dist/usr/include \
+  LIBRARY_PATH=$SCRT_DIR/subprojects/libcap/dist/lib64 \
   meson compile -C build
   meson install -C build
+  cd ..
+
 else
   echo "gudev-1.0 already found."
 fi
@@ -278,7 +497,7 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
 
 # Customized build <2K file
 rm -rf build
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE \
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_GUDEV:$PKG_UDEV \
 meson setup build \
   --buildtype=release \
   --strip \
@@ -289,6 +508,7 @@ meson setup build \
   --prefix=$GST_DIR/build/dist \
   --libdir=lib
 
+LIBRARY_PATH=$LIBRARY_PATH:$SCRT_DIR/subprojects/systemd/build/dist/usr/lib \
 meson compile -C build
 meson install -C build
 
@@ -370,8 +590,9 @@ if [ $ENABLE_RPI -eq 1 ]; then
     -Dgst-omx:target=rpi \
     -Dgst-plugins-good:rpicamsrc=enabled \
     --prefix=$GST_DIR/build_omx/dist \
-    --libdir=lib
-
+      --libdir=lib
+  
+  LIBRARY_PATH=$SCRT_DIR/subprojects/systemd/build/dist/usr/lib \
   meson compile -C build_omx
   meson install -C build_omx
 
