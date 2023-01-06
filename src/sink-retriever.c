@@ -6,38 +6,19 @@ typedef struct {
     SupportedAudioSinkTypes type;
 } AudioRetValue;
 
-void child_added_callback (GstChildProxy * self,
-                      GObject * object,
-                      gchar * name,
-                      gpointer user_data){
-    AudioRetValue * ret_val = (AudioRetValue *) user_data;
-    if(!strcmp(name,"detectaudiosink-actual-sink-pulse")){
-        ret_val->type = ONVIF_PULSE;
-        g_info("Detector found pulse sink\n");
-    } else if(!strcmp(name,"detectaudiosink-actual-sink-alsa")){
-        ret_val->type = ONVIF_ASLA;
-    } else if(!strcmp(name,"detectaudiosink-actual-sink-omxhdmiaudio")){
-        ret_val->type = ONVIF_OMX;
-    } else if(!strcmp(name,"fake-audio-sink")){
-        g_info("Detector ignore fake sink.");
-    } else {
-        g_warning("Unexpected audio sink. '%s'",name);
-    }
-}
-
-SupportedAudioSinkTypes  
-retrieve_audiosink(void){
+int  
+test_audiosink(char * sinkname){
 
     //Create temporary pipeline to use AutoDetect element
     GstElement * pipeline = gst_pipeline_new ("audiotest-pipeline");
     GstElement * src = gst_element_factory_make ("audiotestsrc", "src");
     GstElement * volume = gst_element_factory_make ("volume", "vol");
-    GstElement * sink = gst_element_factory_make ("autoaudiosink", "detectaudiosink");
+    GstElement * sink = gst_element_factory_make (sinkname, "detectaudiosink");
     g_object_set (G_OBJECT (volume), "mute", TRUE, NULL); 
 
-    //Initializing return value
-    AudioRetValue * ret_val = malloc(sizeof(AudioRetValue));
-    ret_val->type = ONVIF_NA;
+    if(!strcmp(sinkname,"alsasink")){
+        g_object_set (G_OBJECT (sink), "device", "hw:0", NULL); 
+    }
 
     //Validate elements
     if (!pipeline || \
@@ -45,7 +26,7 @@ retrieve_audiosink(void){
         !volume || \
         !sink) {
         g_printerr ("One of the elements wasn't created... Exiting\n");
-        return ret_val->type;
+        return FALSE;
     }
 
     //Add elements to pipeline
@@ -59,14 +40,9 @@ retrieve_audiosink(void){
         volume, \
         sink, NULL)){
         g_warning ("Linking part (A)-2 Fail...");
-        return ret_val->type;
+        return FALSE;
     }
 
-    //Add callback to find actual-sink name
-    if(! g_signal_connect (sink, "child-added", G_CALLBACK (child_added_callback),ret_val))
-    {
-        g_warning ("Linking part (1) with part (A)-1 Fail...");
-    }
 
     //Play pipeline to construct it.
     GstStateChangeReturn ret;
@@ -74,7 +50,7 @@ retrieve_audiosink(void){
     if (ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr ("Unable to set the pipeline to the playing state.\n");
         gst_object_unref (pipeline);
-        return ret_val->type;
+        return FALSE;
     }
 
     //Stop pipeline
@@ -82,7 +58,7 @@ retrieve_audiosink(void){
     if (ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr ("Unable to set the pipeline to the ready state.\n");
         gst_object_unref (pipeline);
-        return ret_val->type;
+        return FALSE;
     }
 
     //Clean up
@@ -90,9 +66,26 @@ retrieve_audiosink(void){
     if (ret == GST_STATE_CHANGE_FAILURE) {
         g_printerr ("Unable to set the pipeline to the null state.\n");
         gst_object_unref (pipeline);
-        return ret_val->type;
+        return FALSE;
     }
     gst_object_unref (pipeline);
     
-    return ret_val->type;
+    return TRUE;
+}
+
+char * 
+retrieve_audiosink(void){
+
+    int ret;
+    ret = test_audiosink("pulsesink");
+    if(ret){
+        return "pulsesink async=false";
+    }
+
+    ret = test_audiosink("alsasink");
+    if(ret){
+        return "alsasink device=hw:0 async=false";
+    }
+
+    return "fakesink";
 }

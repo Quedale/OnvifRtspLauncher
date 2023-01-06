@@ -116,23 +116,39 @@ fi
 ################################################################
 # 
 #    Build gudev-1.0 dependency
-#   sudo apt install libgudev-1.0-dev (tested 237)
+#   sudo apt install libgudev-1.0-dev (tested 232)
 # 
 ################################################################
 PKG_UDEV=$SCRT_DIR/subprojects/systemd/build/dist/usr/lib/pkgconfig
 PKG_GUDEV=$SCRT_DIR/subprojects/libgudev/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV \
-pkg-config --exists --print-errors "gudev-1.0 >= 237"
+pkg-config --exists --print-errors "gudev-1.0 >= 232"
 ret=$?
 if [ $ret != 0 ]; then 
 
-  # TODO Check for python package
-  # #libudev
-  ##if run_command(python, '-c', 'import jinja2', check : false).returncode() != 0
-  # git -C jinja pull 2> /dev/null || git clone -b 3.1.2 https://github.com/pallets/jinja.git
-  # cd jinja
-  # python3 setup.py install --user
-  # cd ..
+  $(python3 -c "import jinja2")
+  ret=$?
+ if [ $ret != 0 ]; then
+    $(python3 -c "import markupsafe")
+    ret=$?
+    if [ $ret != 0 ]; then
+      echo "installing python3 markupsafe module."
+      git -C markupsafe pull 2> /dev/null || git clone -b 2.1.1 https://github.com/pallets/markupsafe.git
+      cd markupsafe
+      python3 setup.py install --user
+      cd ..
+    else 
+      echo "python3 markupsafe module already found."
+    fi
+
+    echo "installing python3 jinja2 module."
+    git -C jinja pull 2> /dev/null || git clone -b 3.1.2 https://github.com/pallets/jinja.git
+    cd jinja
+    python3 setup.py install --user
+    cd ..
+  else
+    echo "python3 jinja2 already found."
+  fi
 
   PKG_LIBCAP=$SCRT_DIR/subprojects/libcap/dist/lib64/pkgconfig
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \

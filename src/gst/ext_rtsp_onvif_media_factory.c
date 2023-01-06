@@ -506,24 +506,56 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
-    GstElement * audio_src;
+    GstElement * last_element;
     if(!strcmp(factory->priv->audio_device,"test")){
-        audio_src = gst_element_factory_make ("audiotestsrc", "audio_src");
+        last_element = gst_element_factory_make ("audiotestsrc", "audio_src");
+        if (!last_element) {
+            g_printerr ("One of the audio source elements wasn't created... Exiting\n");
+            return NULL;
+        }
+        gst_bin_add_many (GST_BIN (ret), last_element, NULL);
     } else {
-        audio_src = gst_element_factory_make (factory->priv->audio_device, "audio_src");
+        GstElement * audio_src = gst_element_factory_make ("alsasrc", "audio_src");
+        g_object_set(G_OBJECT(audio_src), "device", factory->priv->audio_device,NULL);
+
+        GstElement * audio_resampler = gst_element_factory_make ("audioresample", "audio_resampler");
+        last_element = gst_element_factory_make ("audioconvert", "audio_converter");
+
+        if (!audio_src || !audio_resampler || !last_element) {
+            g_printerr ("One of the audio source elements wasn't created... Exiting\n");
+            return NULL;
+        }
+        gst_bin_add_many (GST_BIN (ret), audio_src, audio_resampler, last_element, NULL);
+
+        //Linking audio elements
+        if (!gst_element_link_many (audio_src, audio_resampler, last_element, NULL)){
+            GST_ERROR ("Linking audio source part (A)-2 Fail...");
+            return NULL;
+        }
+
     }
+
+    //TODO support ONVIF input config for audio format/channels/rate
     GstElement * audio_enc = gst_element_factory_make ("mulawenc", "audio_enc");
+    GstElement * audio_out_capsfilter = gst_element_factory_make ("capsfilter", "audio_out_caps");
+
+    GstCaps * mic_out_filtercaps = gst_caps_new_simple ("audio/x-mulaw",
+                "channels", G_TYPE_INT, 1,
+                "rate", G_TYPE_INT, 8000,
+                NULL);
+    g_object_set(G_OBJECT(audio_out_capsfilter), "caps", mic_out_filtercaps,NULL);
+
     GstElement * audio_pay = gst_element_factory_make ("rtppcmupay", "pay1");
 
-    if (!audio_src || !audio_enc || !audio_pay) {
-        g_printerr ("One of the audio elements wasn't created... Exiting\n");
+    if (!audio_enc || !audio_pay) {
+        g_printerr ("One of the audio encoder/pay elements wasn't created... Exiting\n");
         return NULL;
     }
-    gst_bin_add_many (GST_BIN (ret), audio_src, audio_enc, audio_pay, NULL);
+    gst_bin_add_many (GST_BIN (ret), last_element, audio_enc, audio_out_capsfilter, audio_pay, NULL);
 
     //Linking audio elements
-    if (!gst_element_link_many (audio_src, audio_enc, audio_pay, NULL)){
-        GST_ERROR ("Linking audio part (A)-2 Fail...");
+    if (!gst_element_link_many (last_element, audio_enc, audio_out_capsfilter, audio_pay, NULL)){
+        GST_ERROR ("Linking audio encoder/pay part (A)-2 Fail...");
         return NULL;
     }
 

@@ -44,7 +44,7 @@ const char *argp_program_bug_address = "<your@email.address>";
 static char doc[] = "Your program description.";
 static struct argp_option options[] = { 
     { "video", 'v', "VIDEO", 0, "Input video device. (Default: /dev/video0)"},
-    { "audio", 'a', "AUDIO", 0, "Input audio device. (Default: autoaudiosrc)"},
+    { "audio", 'a', "AUDIO", 0, "ALSA Input audio device. (Default: hw:1)"},
     { "encoder", 'e', "ENCODER", 0, "Gstreamer encoder. (Default: auto)"},
     { "width", 'w', "WIDTH", 0, "Video output width. (Default: 640)"},
     { "height", 'h', "HEIGHT", 0, "Video output height. (Default: 480)"},
@@ -192,7 +192,7 @@ main (int argc, char *argv[])
     gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
 
     arguments.vdev = "/dev/video0";
-    arguments.adev = "autoaudiosrc";
+    arguments.adev = "hw:1";
     arguments.width = 640;
     arguments.height = 480;
     arguments.fps = 10;
@@ -233,8 +233,8 @@ main (int argc, char *argv[])
     GST_DEBUG ("port : %i", arguments.port);
     GST_DEBUG ("fps : %i", arguments.fps);
 
-    SupportedAudioSinkTypes audio_sink_type;
-    audio_sink_type = retrieve_audiosink();
+    char * audiosink = retrieve_audiosink();
+    printf("Found audio type : %s\n",audiosink);
 
     loop = g_main_loop_new (NULL, FALSE);
     /* create a server instance */
@@ -244,24 +244,6 @@ main (int argc, char *argv[])
     * that be used to map uri mount points to media factories */
     mounts = gst_rtsp_server_get_mount_points (server);
     
-    // TODO handle sink override
-    char * audiosink;
-    switch(audio_sink_type){
-        case ONVIF_PULSE:
-            audiosink = "pulsesink async=false";
-            break;
-        case ONVIF_ASLA:
-            audiosink = "alsasink async=false";
-            break;
-        case ONVIF_OMX:
-            audiosink = "omxhdmiaudiosink";
-            break;
-        case ONVIF_NA:
-        default:
-            audiosink = "fakesink";
-            GST_WARNING("No valid audio sink found for backchannel!");
-    }
-
     //TODO use switchbin to handle LAW and AAC
     char * backchannel_lauch;
     if(!asprintf(&backchannel_lauch, "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! %s )",
