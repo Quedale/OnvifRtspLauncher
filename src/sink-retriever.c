@@ -2,10 +2,6 @@
 #include <stdio.h>
 #include "sink-retriever.h"
 
-typedef struct {
-    SupportedAudioSinkTypes type;
-} AudioRetValue;
-
 int  
 test_audiosink(char * sinkname){
 
