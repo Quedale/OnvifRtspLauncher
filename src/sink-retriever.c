@@ -173,7 +173,7 @@ retrieve_audiosrc(char * element, char * device){
     }
 
     AlsaDevices__destroy(dev_list);
-    strcpy(element,"autoaudiosrc");
+    element[0] = '\0';
     device[0] = '\0';
 }
 

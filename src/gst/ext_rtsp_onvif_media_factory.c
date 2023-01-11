@@ -527,6 +527,10 @@ priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory *
         }
         gst_bin_add_many (GST_BIN (ret), last_element, NULL);
     } else {
+        if(strlen(factory->priv->microphone_element) < 1){
+            GST_WARNING("No microphone source detected.");
+            return ret;
+        }
         GstElement * audio_src = gst_element_factory_make (factory->priv->microphone_element, "audio_src");
         if(factory->priv->microphone_device){
             g_object_set(G_OBJECT(audio_src), "device", factory->priv->microphone_device,NULL);
