@@ -21,8 +21,8 @@ struct ExtRTSPOnvifMediaFactoryPrivate
     gchar * video_encoder;
 
     //Audio capture parameters
-    gchar * audio_device;
-
+    gchar * microphone_device;
+    gchar * microphone_element;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (ExtRTSPOnvifMediaFactory, ext_rtsp_onvif_media_factory, GST_TYPE_RTSP_ONVIF_MEDIA_FACTORY);
@@ -99,15 +99,26 @@ ext_rtsp_onvif_media_factory_set_video_device (ExtRTSPOnvifMediaFactory *
 }
 
 void
-ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory *
+ext_rtsp_onvif_media_factory_set_microphone_device (ExtRTSPOnvifMediaFactory *
     factory, const gchar * dev)
 {
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
     GST_LOG("'%s'",dev);
 
     g_mutex_lock (&factory->priv->lock);
-    g_free (factory->priv->audio_device);
-    factory->priv->audio_device = g_strdup (dev);
+    g_free (factory->priv->microphone_device);
+    factory->priv->microphone_device = g_strdup (dev);
+    g_mutex_unlock (&factory->priv->lock);
+}
+
+void 
+ext_rtsp_onvif_media_factory_set_microphone_element (ExtRTSPOnvifMediaFactory * factory, const gchar * element){
+    g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
+    GST_LOG("'%s'",element);
+
+    g_mutex_lock (&factory->priv->lock);
+    g_free (factory->priv->microphone_element);
+    factory->priv->microphone_element = g_strdup (element);
     g_mutex_unlock (&factory->priv->lock);
 }
 
@@ -153,7 +164,8 @@ ext_rtsp_onvif_media_factory_init (ExtRTSPOnvifMediaFactory * factory)
 
     //Defaults
     ext_rtsp_onvif_media_factory_set_video_device(factory,"test");
-    ext_rtsp_onvif_media_factory_set_audio_device(factory,"test");
+    ext_rtsp_onvif_media_factory_set_microphone_device(factory,NULL);
+    ext_rtsp_onvif_media_factory_set_microphone_element(factory,"autoaudiosrc");
     ext_rtsp_onvif_media_factory_set_width(factory,640);
     ext_rtsp_onvif_media_factory_set_height(factory,480);
     ext_rtsp_onvif_media_factory_set_fps(factory,10);
@@ -507,7 +519,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
     GstElement * last_element;
-    if(!strcmp(factory->priv->audio_device,"test")){
+    if(!strcmp(factory->priv->microphone_device,"test")){
         last_element = gst_element_factory_make ("audiotestsrc", "audio_src");
         if (!last_element) {
             g_printerr ("One of the audio source elements wasn't created... Exiting\n");
@@ -515,11 +527,12 @@ priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory *
         }
         gst_bin_add_many (GST_BIN (ret), last_element, NULL);
     } else {
-        GstElement * audio_src = gst_element_factory_make ("alsasrc", "audio_src");
-        g_object_set(G_OBJECT(audio_src), "device", factory->priv->audio_device,NULL);
-
+        GstElement * audio_src = gst_element_factory_make (factory->priv->microphone_element, "audio_src");
+        if(factory->priv->microphone_device){
+            g_object_set(G_OBJECT(audio_src), "device", factory->priv->microphone_device,NULL);
+        }
         GstElement * audio_resampler = gst_element_factory_make ("audioresample", "audio_resampler");
-        last_element = gst_element_factory_make ("audioconvert", "audio_converter");
+        last_element = gst_element_factory_make ("audioconvert", NULL);
 
         if (!audio_src || !audio_resampler || !last_element) {
             g_printerr ("One of the audio source elements wasn't created... Exiting\n");
@@ -588,7 +601,7 @@ priv_ext_rtsp_onvif_media_factory_create_element (ExtRTSPOnvifMediaFactory * fac
     GST_DEBUG("width : %i",factory->priv->width);
     GST_DEBUG("height : %i",factory->priv->height);
     GST_DEBUG("fps : %i",factory->priv->fps);
-    GST_DEBUG("audio_device : %s",factory->priv->audio_device);
+    GST_DEBUG("microphone_device : %s",factory->priv->microphone_device);
     GstElement *ret = gst_bin_new (NULL);
 
     if(!ret){

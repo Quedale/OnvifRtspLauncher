@@ -50,7 +50,10 @@ void
 ext_rtsp_onvif_media_factory_set_video_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
 
 void 
-ext_rtsp_onvif_media_factory_set_audio_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
+ext_rtsp_onvif_media_factory_set_microphone_device (ExtRTSPOnvifMediaFactory * factory, const gchar * dev);
+
+void 
+ext_rtsp_onvif_media_factory_set_microphone_element (ExtRTSPOnvifMediaFactory * factory, const gchar * element);
 
 void 
 ext_rtsp_onvif_media_factory_set_width (ExtRTSPOnvifMediaFactory * factory, const gint width);

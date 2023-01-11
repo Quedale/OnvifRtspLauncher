@@ -1,3 +1,5 @@
+void 
+retrieve_audiosink (char * output);
 
-char * 
-retrieve_audiosink (void);
+void
+retrieve_audiosrc(char * element, char * device);

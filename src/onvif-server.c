@@ -44,7 +44,7 @@ const char *argp_program_bug_address = "<your@email.address>";
 static char doc[] = "Your program description.";
 static struct argp_option options[] = { 
     { "video", 'v', "VIDEO", 0, "Input video device. (Default: /dev/video0)"},
-    { "audio", 'a', "AUDIO", 0, "ALSA Input audio device. (Default: hw:1)"},
+    { "audio", 'a', "AUDIO", 0, "ALSA Input audio device. (Default: auto)"},
     { "encoder", 'e', "ENCODER", 0, "Gstreamer encoder. (Default: auto)"},
     { "width", 'w', "WIDTH", 0, "Video output width. (Default: 640)"},
     { "height", 'h', "HEIGHT", 0, "Video output height. (Default: 480)"},
@@ -192,7 +192,7 @@ main (int argc, char *argv[])
     gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
 
     arguments.vdev = "/dev/video0";
-    arguments.adev = "hw:1";
+    arguments.adev = NULL;
     arguments.width = 640;
     arguments.height = 480;
     arguments.fps = 10;
@@ -223,6 +223,20 @@ main (int argc, char *argv[])
         GST_WARNING("Video Encoder override '%s'",arguments.encoder);
     }
 
+     /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
+    char mic_element[8], mic_device[6];
+    if(!arguments.adev){
+        retrieve_audiosrc(mic_element,mic_device);
+    } else {
+        strcpy(mic_element,"alsasrc");
+        GST_WARNING("Audio Source Device override '%s'",arguments.adev);
+    }
+    arguments.adev = &mic_device[0];
+
+    /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
+    char audiosink[35];
+    retrieve_audiosink(audiosink);
+
     GST_DEBUG ("vdev : %s", arguments.vdev);
     GST_DEBUG ("adev : %s", arguments.adev);
     GST_DEBUG ("width : %i", arguments.width);
@@ -232,10 +246,8 @@ main (int argc, char *argv[])
     GST_DEBUG ("mount : %s", arguments.mount);
     GST_DEBUG ("port : %i", arguments.port);
     GST_DEBUG ("fps : %i", arguments.fps);
-
-    char * audiosink = retrieve_audiosink();
-    printf("Found audio type : %s\n",audiosink);
-
+    GST_DEBUG ("mic src element : %s",mic_element);
+    GST_DEBUG ("mic sink element : %s",audiosink);
     loop = g_main_loop_new (NULL, FALSE);
     /* create a server instance */
     server = gst_rtsp_onvif_server_new ();
@@ -243,8 +255,6 @@ main (int argc, char *argv[])
     /* get the mount points for this server, every server has a default object
     * that be used to map uri mount points to media factories */
     mounts = gst_rtsp_server_get_mount_points (server);
-    
-    //TODO use switchbin to handle LAW and AAC
     char * backchannel_lauch;
     if(!asprintf(&backchannel_lauch, "( capsfilter caps=\"application/x-rtp, media=audio, payload=0, clock-rate=8000, encoding-name=PCMU\" name=depay_backchannel ! rtppcmudepay ! mulawdec ! %s )",
         audiosink)){
@@ -292,7 +302,8 @@ main (int argc, char *argv[])
 
     //TODO handle format
     ext_rtsp_onvif_media_factory_set_video_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.vdev);
-    ext_rtsp_onvif_media_factory_set_audio_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.adev);
+    ext_rtsp_onvif_media_factory_set_microphone_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.adev);
+    ext_rtsp_onvif_media_factory_set_microphone_element(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),mic_element);
     ext_rtsp_onvif_media_factory_set_video_encoder(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.encoder);
     ext_rtsp_onvif_media_factory_set_width(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.width);
     ext_rtsp_onvif_media_factory_set_height(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.height);
