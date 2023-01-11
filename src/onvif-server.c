@@ -224,7 +224,7 @@ main (int argc, char *argv[])
     }
 
      /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
-    char mic_element[8], mic_device[6];
+    char mic_element[9], mic_device[7];
     if(!arguments.adev){
         retrieve_audiosrc(mic_element,mic_device);
     } else {

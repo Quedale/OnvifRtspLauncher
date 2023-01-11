@@ -144,7 +144,7 @@ retrieve_audiosrc(char * element, char * device){
     int ret;
     ret = test_audiosrc("pulsesrc", NULL);
     if(ret){
-        strcpy(device,"pulsesrc");
+        strcpy(element,"pulsesrc");
         device[0] = '\0';
         return;
     }
