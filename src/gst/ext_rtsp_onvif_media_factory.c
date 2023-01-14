@@ -435,20 +435,23 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
     int dev_height;
     int dev_denominator;
     int dev_numerator;
+    int pixel_format;
     if(input == NULL){
         dev_width = factory->priv->width;
         dev_height = factory->priv->height;
         dev_denominator = factory->priv->fps;
         dev_numerator = 1;
+        pixel_format = V4L2_PIX_FMT_YUYV;
     } else {
         dev_width = input->device_width;
         dev_height = input->device_height;
         dev_denominator = input->device_denominator;
         dev_numerator = input->device_numerator;
+        pixel_format = input->device_pixelformat;
     }
 
     //Create Capture elements
-    last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, input->device_pixelformat,dev_denominator,dev_numerator,dev_width,dev_height);
+    last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, pixel_format,dev_denominator,dev_numerator,dev_width,dev_height);
     if(last_element == NULL){
         return NULL;
     }
@@ -484,7 +487,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
     last_element = vq;
 
     //Check if device format is compatible with stream output
-    if(!is_suported_output_format(input->device_pixelformat)){
+    if(!is_suported_output_format(pixel_format)){
         GST_WARNING("Using video encoder!!!");
         last_element = priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements(factory,ret, last_element);
         if(last_element == NULL){

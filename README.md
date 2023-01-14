@@ -52,6 +52,7 @@ python3 -m pip install ninja
 sudo apt install libtool
 sudo apt install flex
 sudo apt install bison
+sudo apt install nasm
 sudo apt install libasound2-dev
 sudo apt install libpulse-dev
 sudo apt install libgudev-1.0-dev

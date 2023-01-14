@@ -1,4 +1,19 @@
 #!/bin/bash
+SKIP=0
+#Save current working directory to run configure in
+WORK_DIR=$(pwd)
+
+#Get project root directory based on autogen.sh file location
+SCRT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+SUBPROJECT_DIR=$SCRT_DIR/subprojects
+
+#Cache folder for downloaded sources
+SRC_CACHE_DIR=$SUBPROJECT_DIR/.cache
+
+#Failure marker
+FAILED=0
+
+#Handle script arguments
 ENABLE_RPI=0
 ENABLE_LIBAV=0
 ENABLE_CLIENT=0
@@ -15,11 +30,667 @@ do
     i=$((i + 1));
 done
 
-#Save current working directory to run configure in
-WORK_DIR=$(pwd)
+# Define color code constants
+ORANGE='\033[0;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-#Get project root directory based on autogen.sh file location
-SCRT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+############################################
+#
+# Function to print time for human
+#
+############################################
+function displaytime {
+  local T=$1
+  local D=$((T/60/60/24))
+  local H=$((T/60/60%24))
+  local M=$((T/60%60))
+  local S=$((T%60))
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** "
+  (( $D > 0 )) && printf '%d days ' $D
+  (( $H > 0 )) && printf '%d hours ' $H
+  (( $M > 0 )) && printf '%d minutes ' $M
+  (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
+  printf "%d seconds\n${NC}" $S
+  printf "${ORANGE}*****************************\n${NC}"
+}
+
+############################################
+#
+# Function to download and extract tar package file
+# Can optionally use a caching folder defined with SRC_CACHE_DIR
+#
+############################################
+downloadAndExtract (){
+  local path file # reset first
+  local "${@}"
+
+  if [ $SKIP -eq 1 ]
+  then
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Skipping Download ${path} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+      return
+  fi
+
+  dest_val=""
+  if [ ! -z "$SRC_CACHE_DIR" ]; then
+    dest_val="$SRC_CACHE_DIR/${file}"
+  else
+    dest_val=${file}
+  fi
+
+  if [ ! -f "$dest_val" ]; then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** Downloading : ${path} ***\n${NC}"
+    printf "${ORANGE}*** Destination : $dest_val ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+    wget ${path} -O $dest_val
+  else
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** Source already downloaded : ${path} ***\n${NC}"
+    printf "${ORANGE}*** Destination : $dest_val ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** Extracting : ${file} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  if [[ $dest_val == *.tar.gz ]]; then
+    tar xfz $dest_val
+  elif [[ $dest_val == *.tar.xz ]]; then
+    tar xf $dest_val
+  elif [[ $dest_val == *.tar.bz2 ]]; then
+    tar xjf $dest_val
+  else
+    echo "ERROR FILE NOT FOUND ${path} // ${file}"
+    FAILED=1
+  fi
+}
+
+############################################
+#
+# Function to clone a git repository or pull if it already exists locally
+# Can optionally use a caching folder defined with SRC_CACHE_DIR
+#
+############################################
+pullOrClone (){
+  local path tag depth recurse # reset first
+  local "${@}"
+
+  if [ $SKIP -eq 1 ]
+  then
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Skipping Pull/Clone ${tag}@${path} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+      return
+  fi
+
+  recursestr=""
+  if [ ! -z "${recurse}" ] 
+  then
+    recursestr="--recurse-submodules"
+  fi
+  depthstr=""
+  if [ ! -z "${depth}" ] 
+  then
+    depthstr="--depth ${depth}"
+  fi 
+
+  tgstr=""
+  tgstr2=""
+  if [ ! -z "${tag}" ] 
+  then
+    tgstr="origin tags/${tag}"
+    tgstr2="-b ${tag}"
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** Cloning ${tag}@${path} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  IFS='/' read -ra ADDR <<< "$path"
+  namedotgit=${ADDR[-1]}
+  IFS='.' read -ra ADDR <<< "$namedotgit"
+  name=${ADDR[0]}
+
+  dest_val=""
+  if [ ! -z "$SRC_CACHE_DIR" ]; then
+    dest_val="$SRC_CACHE_DIR/$name"
+  else
+    dest_val=$name
+  fi
+  if [ ! -z "${tag}" ]; then
+    dest_val+="-${tag}"
+  fi
+
+  if [ -z "$SRC_CACHE_DIR" ]; then 
+    #TODO Check if it's the right tag
+    git -C $dest_val pull $tgstr 2> /dev/null || git clone -j$(nproc) $recursestr $depthstr $tgstr2 ${path} $dest_val
+  elif [ -d "$dest_val" ] && [ ! -z "${tag}" ]; then #Folder exist, switch to tag
+    currenttag=$(git -C $dest_val tag --points-at ${tag})
+    echo "TODO Check current tag \"${tag}\" == \"$currenttag\""
+    git -C $dest_val pull $tgstr 2> /dev/null || git clone -j$(nproc) $recursestr $depthstr $tgstr2 ${path} $dest_val
+  elif [ -d "$dest_val" ] && [ -z "${tag}" ]; then #Folder exist, switch to main
+    currenttag=$(git -C $dest_val tag --points-at ${tag})
+    echo "TODO Handle no tag \"${tag}\" == \"$currenttag\""
+    git -C $dest_val pull $tgstr 2> /dev/null || git clone -j$(nproc) $recursestr $depthstr $tgstr2 ${path} $dest_val
+  elif [ ! -d "$dest_val" ]; then #fresh start
+    git -C $dest_val pull $tgstr 2> /dev/null || git clone -j$(nproc) $recursestr $depthstr $tgstr2 ${path} $dest_val
+  else
+    if [ -d "$dest_val" ]; then
+      echo "yey destval"
+    fi
+    if [ -z "${tag}" ]; then
+      echo "yey tag"
+    fi
+    echo "1 $dest_val : $(test -f \"$dest_val\")"
+    echo "2 ${tag} : $(test -z \"${tag}\")"
+  fi
+
+  if [ ! -z "$SRC_CACHE_DIR" ]; then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** Copy repo from cache ***\n${NC}"
+    printf "${ORANGE}*** $dest_val ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+    rm -rf $name
+    cp -r $dest_val ./$name
+  fi
+}
+
+############################################
+#
+# Function to build a project configured with autotools
+#
+############################################
+buildMakeProject(){
+  local srcdir prefix autogen autoreconf configure make cmakedir cmakeargs installargs
+  local "${@}"
+
+  build_start=$SECONDS
+  if [ $SKIP -eq 1 ]; then
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Skipping Make ${srcdir} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+      return
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}* Building Project ***\n${NC}"
+  printf "${ORANGE}* Src dir : ${srcdir} ***\n${NC}"
+  printf "${ORANGE}* Prefix : ${prefix} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+
+  curr_dir=$(pwd)
+  cd ${srcdir}
+
+  if [ -f "./bootstrap.sh" ]; then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** bootstrap.sh ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+    # PATH="$PATH" \
+    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+        ./bootstrap.sh
+    status=$?
+    if [ $status -ne 0 ]; then
+        printf "${RED}*****************************\n${NC}"
+        printf "${RED}*** ./bootstrap.sh failed ${srcdir} ***\n${NC}"
+        printf "${RED}*****************************\n${NC}"
+        FAILED=1
+        cd $curr_dir
+        return
+    fi
+  fi
+  if [ -f "./autogen.sh" ] && [ "${autogen}" != "skip" ]; then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** autogen ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+    # PATH="$PATH" \
+    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+        ./autogen.sh ${autogen}
+    status=$?
+    if [ $status -ne 0 ]; then
+        printf "${RED}*****************************\n${NC}"
+        printf "${RED}*** Autogen failed ${srcdir} ***\n${NC}"
+        printf "${RED}*****************************\n${NC}"
+        FAILED=1
+        cd $curr_dir
+        return
+    fi
+  fi
+
+  if [ ! -z "${autoreconf}" ] 
+  then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** autoreconf ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+    # PATH="$PATH" \
+    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+        autoreconf ${autoreconf}
+    status=$?
+    if [ $status -ne 0 ]; then
+        printf "${RED}*****************************\n${NC}"
+        printf "${RED}*** Autoreconf failed ${srcdir} ***\n${NC}"
+        printf "${RED}*****************************\n${NC}"
+        FAILED=1
+        cd $curr_dir
+        return
+    fi
+  fi
+  if [ ! -z "${cmakedir}" ] 
+  then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** cmake ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*** Args ${cmakeargs} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+
+    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+    # PATH="$PATH" \
+    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    cmake -G "Unix Makefiles" \
+      ${cmakeargs} \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_INSTALL_PREFIX="${prefix}" \
+      -DENABLE_TESTS=OFF \
+      -DENABLE_SHARED=on \
+      "${cmakedir}"
+    status=$?
+    if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** CMake failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+    fi
+  fi
+
+  if [ -f "./configure" ]; then
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** configure ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+
+    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+    # PATH="$PATH" \
+    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+        ./configure \
+            --prefix=${prefix} \
+            ${configure}
+    status=$?
+    if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** ./configure failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      echo "PATH?? $(pwd)"
+      FAILED=1
+      cd $curr_dir
+      return
+    fi
+  else
+    printf "${ORANGE}*****************************\n${NC}"
+    printf "${ORANGE}*** no configuration available ${srcdir} ***\n${NC}"
+    printf "${ORANGE}*****************************\n${NC}"
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** compile ${srcdir} ***\n${NC}"
+  printf "${ORANGE}*** Make Args : ${makeargs} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+  # PATH="$PATH" \
+  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    make -j$(nproc) ${make}
+  status=$?
+  if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** Make failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      FAILED=1
+      cd $curr_dir
+      return
+  fi
+
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** install ${srcdir} ***\n${NC}"
+  printf "${ORANGE}*** Make Args : ${makeargs} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+  # PATH="$PATH" \
+  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    make -j$(nproc) ${make} install ${installargs}
+  status=$?
+  if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** Make failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      FAILED=1
+      cd $curr_dir
+      return
+  fi
+
+  build_time=$(( SECONDS - build_start ))
+  displaytime $build_time
+
+  cd $curr_dir
+}
+
+
+############################################
+#
+# Function to build a project configured with meson
+#
+############################################
+buildMesonProject() {
+  local srcdir mesonargs prefix setuppatch bindir destdir builddir defaultlib clean
+  local "${@}"
+
+  build_start=$SECONDS
+  if [ $SKIP -eq 1 ]
+  then
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Skipping Meson ${srcdir} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+      return
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}* Building Github Project ***\n${NC}"
+  printf "${ORANGE}* Src dir : ${srcdir} ***\n${NC}"
+  printf "${ORANGE}* Prefix : ${prefix} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+
+  curr_dir=$(pwd)
+
+  build_dir=""
+  if [ ! -z "${builddir}" ] 
+  then
+    build_dir="${builddir}"
+  else
+    build_dir="build_dir"
+  fi
+
+  default_lib=""
+  if [ ! -z "${defaultlib}" ] 
+  then
+    default_lib="${defaultlib}"
+  else
+    default_lib="static"
+  fi
+
+  bindir_val=""
+  if [ ! -z "${bindir}" ]; then
+      bindir_val="--bindir=${bindir}"
+  fi
+  
+  if [ ! -z "${clean}" ]; then
+    rm -rf ${srcdir}/$build_dir
+  fi
+
+  if [ ! -d "${srcdir}/$build_dir" ]; then
+      mkdir -p ${srcdir}/$build_dir
+
+      cd ${srcdir}
+      if [ -d "./subprojects" ]; then
+          printf "${ORANGE}*****************************\n${NC}"
+          printf "${ORANGE}*** Download Subprojects ${srcdir} ***\n${NC}"
+          printf "${ORANGE}*****************************\n${NC}"
+          # C_INCLUDE_PATH="${prefix}/include" \
+          # CPLUS_INCLUDE_PATH="${prefix}/include" \
+          # PATH="$HOME/bin:$PATH" \
+          # LIBRARY_PATH="${prefix}/lib:$LIBRARY_PATH" \
+          # LD_LIBRARY_PATH="${prefix}/lib" \
+          # PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" \
+          #     meson subprojects download
+      fi
+
+      echo "setup patch : ${setuppatch}"
+      if [ ! -z "${setuppatch}" ]; then
+          printf "${ORANGE}*****************************\n${NC}"
+          printf "${ORANGE}*** Meson Setup Patch ${srcdir} ***\n${NC}"
+          printf "${ORANGE}*** ${setuppatch} ***\n${NC}"
+          printf "${ORANGE}*****************************\n${NC}"
+          # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+          # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+          # PATH="$PATH" \
+          # LIBRARY_PATH="$LIBRARY_PATH" \
+          # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+          # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+              bash -c "${setuppatch}"
+          status=$?
+          if [ $status -ne 0 ]; then
+              printf "${RED}*****************************\n${NC}"
+              printf "${RED}*** Bash Setup failed ${srcdir} ***\n${NC}"
+              printf "${RED}*****************************\n${NC}"
+              FAILED=1
+              cd $curr_dir
+              return
+          fi
+      fi
+
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Meson Setup ${srcdir} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+
+      # cd build_dir
+      # C_INCLUDE_PATH="${prefix}/include" \
+      # CPLUS_INCLUDE_PATH="${prefix}/include" \
+      # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+      # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+      # PATH="$PATH" \
+      # LIBRARY_PATH="$LIBRARY_PATH" \
+      # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+      # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+          meson setup $build_dir \
+              ${mesonargs} \
+              --default-library=$default_lib \
+              --prefix=${prefix} \
+              $bindir_val \
+              --libdir=lib \
+              --includedir=include \
+              --buildtype=release 
+      status=$?
+      if [ $status -ne 0 ]; then
+          printf "${RED}*****************************\n${NC}"
+          printf "${RED}*** Meson Setup failed ${srcdir} ***\n${NC}"
+          printf "${RED}*****************************\n${NC}"
+          FAILED=1
+          cd $curr_dir
+          return
+      fi
+  else
+      cd ${srcdir}
+      if [ -d "./subprojects" ]; then
+          printf "${ORANGE}*****************************\n${NC}"
+          printf "${ORANGE}*** Meson Update ${srcdir} ***\n${NC}"
+          printf "${ORANGE}*****************************\n${NC}"
+          # C_INCLUDE_PATH="${prefix}/include" \
+          # CPLUS_INCLUDE_PATH="${prefix}/include" \
+          # PATH="$HOME/bin:$PATH" \
+          # LIBRARY_PATH="${prefix}/lib:$LIBRARY_PATH" \
+          # LD_LIBRARY_PATH="${prefix}/lib" \
+          # PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" \
+          #     meson subprojects update
+      fi
+
+      if [ ! -z "${setuppatch}" ]; then
+          printf "${ORANGE}*****************************\n${NC}"
+          printf "${ORANGE}*** Meson Setup Patch ${srcdir} ***\n${NC}"
+          printf "${ORANGE}*** ${setuppatch} ***\n${NC}"
+          printf "${ORANGE}*****************************\n${NC}"
+          # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+          # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+          # PATH="$PATH" \
+          # LIBRARY_PATH="$LIBRARY_PATH" \
+          # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+          # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+              bash -c "${setuppatch}"
+          status=$?
+          if [ $status -ne 0 ]; then
+              printf "${RED}*****************************\n${NC}"
+              printf "${RED}*** Bash Setup failed ${srcdir} ***\n${NC}"
+              printf "${RED}*****************************\n${NC}"
+              FAILED=1
+              cd $curr_dir
+              return
+          fi
+      fi
+
+      printf "${ORANGE}*****************************\n${NC}"
+      printf "${ORANGE}*** Meson Reconfigure $(pwd) ${srcdir} ***\n${NC}"
+      printf "${ORANGE}*****************************\n${NC}"
+      # rm -rf build_dir #Cmake state somehow gets messed up
+      # mkdir build_dir
+      # cd build_dir
+
+      # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+      # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+      # PATH="$PATH" \
+      # LIBRARY_PATH="$LIBRARY_PATH" \
+      # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+      # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+          meson setup $build_dir \
+              ${mesonargs} \
+              --default-library=$default_lib \
+              --prefix=${prefix} \
+              $bindir_val \
+              --libdir=lib \
+              --includedir=include \
+              --buildtype=release \
+              --reconfigure
+
+      status=$?
+      if [ $status -ne 0 ]; then
+          printf "${RED}*****************************\n${NC}"
+          printf "${RED}*** Meson Setup failed ${srcdir} ***\n${NC}"
+          printf "${RED}*****************************\n${NC}"
+          FAILED=1
+          cd $curr_dir
+          return
+      fi
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** Meson Compile ${srcdir} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+  # PATH="$PATH" \
+  # LIBRARY_PATH="$LIBRARY_PATH" \
+  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    meson compile -C $build_dir
+  status=$?
+  if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** meson compile failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      FAILED=1
+      cd $curr_dir
+      return
+  fi
+
+  printf "${ORANGE}*****************************\n${NC}"
+  printf "${ORANGE}*** Meson Install ${srcdir} ***\n${NC}"
+  printf "${ORANGE}*****************************\n${NC}"
+  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
+  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
+  # PATH="$PATH" \
+  # LIBRARY_PATH="$LIBRARY_PATH" \
+  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    DESTDIR=${destdir} meson install -C $build_dir
+  status=$?
+  if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** Meson Install failed ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      FAILED=1
+      cd $curr_dir
+      return
+  fi
+
+  build_time=$(( SECONDS - build_start ))
+  displaytime $build_time
+  cd $curr_dir
+
+}
+
+############################################
+#
+# Function to check if a program exists
+#
+############################################
+checkProg () {
+  local name args path # reset first
+  local "${@}"
+
+  if !PATH=$PATH:${path} command -v ${name} &> /dev/null
+  then
+    return #Prog not found
+  else
+    PATH=$PATH:${path} command ${name} ${args} &> /dev/null
+    status=$?
+    if [[ $status -eq 0 ]]; then
+        echo "Working"
+    else
+        return #Prog failed
+    fi
+  fi
+}
+
+# Hard dependency check
+MISSING_DEP=0
+if [ -z "$(checkProg name='meson' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "meson build utility not found! Aborting..."
+fi
+
+if [ -z "$(checkProg name='ninja' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "ninja build utility not found! Aborting..."
+fi
+
+if [ -z "$(checkProg name='automake' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "automake build utility not found! Aborting..."
+fi
+
+if [ -z "$(checkProg name='autoconf' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "autoconf build utility not found! Aborting..."
+fi
+
+if [ -z "$(checkProg name='libtoolize' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "libtool build utility not found! Aborting..."
+fi
+
+if [ -z "$(checkProg name='pkg-config' args='--version' path=$PATH)" ]; then
+  MISSING_DEP=1
+  echo "pkg-config build utility not found! Aborting..."
+fi
+
+if [ $MISSING_DEP -eq 1 ]; then
+  exit 1
+fi
+
+
+#Change to the project folder to run autoconf and automake
 cd $SCRT_DIR
 
 #Initialize project
@@ -28,66 +699,24 @@ autoconf
 automake --add-missing
 autoreconf -i
 
+mkdir -p $SUBPROJECT_DIR
+mkdir -p $SRC_CACHE_DIR
 
-checkProg () {
-    local name args path # reset first
-    local "${@}"
-
-    if !PATH=${path} command -v ${name} &> /dev/null
-    then
-        # echo "not found"
-        return #Prog not found
-    else
-        PATH=${path} command ${name} ${args} &> /dev/null
-        status=$?
-        if [[ $status -eq 0 ]]; then
-            echo "Working"
-        else
-            # echo "failed ${path}"
-            return #Prog failed
-        fi
-    fi
-}
-
-mkdir -p subprojects
-cd subprojects
+cd $SUBPROJECT_DIR
 
 ################################################################
 # 
-#    Build gettext dependency
-#   sudo apt install gettext (tested 1.16.3)
+#    Build gettext and libgettext dependency
+#   sudo apt install gettext libgettext-dev (tested 1.16.3)
 # 
 ################################################################
-# PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig \
-# pkg-config --exists --print-errors "libv4l2 >= 1.16.3"
-# ret=$?
-# if [ $ret != 0 ]; then 
-PATH=$PATH:$SCRT_DIR/subprojects/gettext/dist/bin
-if [ -z "$(checkProg name='gettext' args='--version' path=$PATH)" ]; then
+PATH=$PATH:$SUBPROJECT_DIR/gettext-0.21.1/dist/bin
+if [ -z "$(checkProg name='gettextize' args='--version' path=$PATH)" ]; then
   echo "not found gettext"
-
-  PATH=$PATH:$SCRT_DIR/subprojects/fpc-3.2.2.x86_64-linux/dist/bin
-  if [ -z "$(checkProg name='ppcx64' args='-iW' path=$PATH)" ] && [ -z "$(checkProg name='ppcx86' args='-iW' path=$PATH)" ]; then
-    wget https://sourceforge.net/projects/freepascal/files/Linux/3.2.2/fpc-3.2.2.x86_64-linux.tar
-    tar xf fpc-3.2.2.x86_64-linux.tar
-    rm fpc-3.2.2.x86_64-linux.tar
-    cd fpc-3.2.2.x86_64-linux
-    echo $(pwd)/dist | ./install.sh
-    cd ..
-  else
-    echo "fpc found"
-  fi
-
-  git -C gnulib pull 2> /dev/null || git clone https://git.savannah.gnu.org/git/gnulib.git
-  git -C gettext pull 2> /dev/null || git clone -b v0.21.1 git://git.savannah.gnu.org/gettext.git 
-  cd gettext
-  GNULIB_SRCDIR=$(pwd)/../gnulib \
-  ./autogen.sh
-  make distclean
-  ./configure --prefix=$(pwd)/dist/usr/local MAKEINFO=true
-  make -j$(nproc)
-  make install-exec
-
+  downloadAndExtract file="gettext-0.21.1.tar.gz" path="https://ftp.gnu.org/pub/gnu/gettext/gettext-0.21.1.tar.gz"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+  buildMakeProject srcdir="gettext-0.21.1" prefix="$SUBPROJECT_DIR/gettext-0.21.1/dist" autogen="skip"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 else
   echo "gettext already found."
 fi
@@ -98,20 +727,19 @@ fi
 #   sudo apt install libv4l2-dev (tested 1.16.3)
 # 
 ################################################################
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SCRT_DIR/subprojects/v4l-utils/dist/lib/pkgconfig \
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SUBPROJECT_DIR/v4l-utils/dist/lib/pkgconfig \
 pkg-config --exists --print-errors "libv4l2 >= 1.16.3"
 ret=$?
-if [ $ret != 0 ]; then 
-  git -C v4l-utils pull 2> /dev/null || git clone -b v4l-utils-1.22.1 https://github.com/gjasny/v4l-utils.git
-  cd v4l-utils
-  ./bootstrap.sh
-  ./configure --prefix=$(pwd)/dist --enable-static --disable-shared --with-udevdir=$(pwd)/dist/udev
-  make -j$(nproc)
-  make install 
-  cd ..
+if [ $ret != 0 ]; then
+  echo "not found libv4l2"
+  pullOrClone path=https://git.linuxtv.org/v4l-utils.git tag=v4l-utils-1.22.1
+  ACLOCAL_PATH=$SUBPROJECT_DIR/gettext-0.21.1/dist/share/aclocal \
+  buildMakeProject srcdir="v4l-utils" prefix="$SUBPROJECT_DIR/v4l-utils/dist" configure="--enable-static --disable-shared --with-udevdir=$SUBPROJECT_DIR/v4l-utils/dist/udev"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 else
   echo "libv4l2 already found."
 fi
+
 
 ################################################################
 # 
@@ -119,201 +747,198 @@ fi
 #   sudo apt install libgudev-1.0-dev (tested 232)
 # 
 ################################################################
-PKG_UDEV=$SCRT_DIR/subprojects/systemd/build/dist/usr/lib/pkgconfig
-PKG_GUDEV=$SCRT_DIR/subprojects/libgudev/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV \
+PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
+PKG_UDEV=$SUBPROJECT_DIR/systemd-252/dist/usr/local/lib/pkgconfig
+PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV:$PKG_GLIB \
 pkg-config --exists --print-errors "gudev-1.0 >= 232"
 ret=$?
 if [ $ret != 0 ]; then 
-
-  $(python3 -c "import jinja2")
-  ret=$?
- if [ $ret != 0 ]; then
-    $(python3 -c "import markupsafe")
-    ret=$?
-    if [ $ret != 0 ]; then
-      echo "installing python3 markupsafe module."
-      git -C markupsafe pull 2> /dev/null || git clone -b 2.1.1 https://github.com/pallets/markupsafe.git
-      cd markupsafe
-      python3 setup.py install --user
-      cd ..
-    else 
-      echo "python3 markupsafe module already found."
-    fi
-
-    echo "installing python3 jinja2 module."
-    git -C jinja pull 2> /dev/null || git clone -b 3.1.2 https://github.com/pallets/jinja.git
-    cd jinja
-    python3 setup.py install --user
-    cd ..
+  echo "not found gudev-1.0"
+  if [ -z "$(checkProg name='gperf' args='--version' path=$SUBPROJECT_DIR/gperf-3.1/dist/bin)" ]; then
+    echo "not found gperf"
+    downloadAndExtract file="gperf-3.1.tar.gz" path="http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+    buildMakeProject srcdir="gperf-3.1" prefix="$SUBPROJECT_DIR/gperf-3.1/dist" autogen="skip"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
   else
-    echo "python3 jinja2 already found."
+    echo "gperf already found."
   fi
 
-  PKG_LIBCAP=$SCRT_DIR/subprojects/libcap/dist/lib64/pkgconfig
+  PKG_LIBCAP=$SUBPROJECT_DIR/libcap/dist/lib64/pkgconfig
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
   pkg-config --exists --print-errors "libcap >= 2.53" # Or check for sys/capability.h
   ret=$?
-  if [ $ret != 0 ]; then 
-    git -C libcap pull 2> /dev/null || git clone -b libcap-2.53  git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git
-    cd libcap
-    make -j$(nproc)
-    make install DESTDIR=$(pwd)/dist
-    cd ..
+  if [ $ret != 0 ]; then
+    echo "not found libcap"
+    pullOrClone path=git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git tag=libcap-2.53
+    buildMakeProject srcdir="libcap" prefix="$SUBPROJECT_DIR/libcap/dist" installargs="DESTDIR=$SUBPROJECT_DIR/libcap/dist"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
   else
     echo "libcap already found."
   fi
 
+  PKG_UTIL_LINUX=$SUBPROJECT_DIR/util-linux/dist/lib/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UTIL_LINUX \
+  pkg-config --exists --print-errors "mount >= 2.38.0"
+  ret=$?
+  if [ $ret != 0 ]; then
+    echo "not found mount"
+    pullOrClone path=https://github.com/util-linux/util-linux.git tag=v2.38.1
+    buildMakeProject srcdir="util-linux" prefix="$SUBPROJECT_DIR/util-linux/dist" configure="--disable-rpath --disable-bash-completion --disable-makeinstall-setuid --disable-makeinstall-chown"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+  else
+    echo "mount already found."
+  fi
 
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
   pkg-config --exists --print-errors "libudev >= 252" # Or check for sys/capability.h
   ret=$?
-  if [ $ret != 0 ]; then 
-    git -C systemd pull 2> /dev/null || git clone -b v252 https://github.com/systemd/systemd.git
-    cd systemd
-    rm -rf build
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
-    C_INCLUDE_PATH=$SCRT_DIR/subprojects/libcap/dist/usr/include \
-    meson setup build \
-      --default-library=static \
-      -Dauto_features=disabled \
-      -Dmode=developer \
-      -Dlink-udev-shared=false \
-      -Dlink-systemctl-shared=false \
-      -Dlink-networkd-shared=false \
-      -Dlink-timesyncd-shared=false \
-      -Dlink-journalctl-shared=false \
-      -Dlink-boot-shared=false \
-      -Dfirst-boot-full-preset=false \
-      -Dstatic-libsystemd=false \
-      -Dstatic-libudev=true \
-      -Dstandalone-binaries=false \
-      -Dinitrd=false \
-      -Dcompat-mutable-uid-boundaries=false \
-      -Dnscd=false \
-      -Ddebug-shell='' \
-      -Ddebug-tty='' \
-      -Dutmp=false \
-      -Dhibernate=false \
-      -Dldconfig=false \
-      -Dresolve=false \
-      -Defi=false \
-      -Dtpm=false \
-      -Denvironment-d=false \
-      -Dbinfmt=false \
-      -Drepart=false \
-      -Dsysupdate=false \
-      -Dcoredump=false \
-      -Dpstore=false \
-      -Doomd=false \
-      -Dlogind=false \
-      -Dhostnamed=false \
-      -Dlocaled=false \
-      -Dmachined=false \
-      -Dportabled=false \
-      -Dsysext=false \
-      -Duserdb=false \
-      -Dhomed=false \
-      -Dnetworkd=false \
-      -Dtimedated=false \
-      -Dtimesyncd=false \
-      -Dremote=false \
-      -Dcreate-log-dirs=false \
-      -Dnss-myhostname=false \
-      -Dnss-mymachines=false \
-      -Dnss-resolve=false \
-      -Dnss-systemd=false \
-      -Drandomseed=false \
-      -Dbacklight=false \
-      -Dvconsole=false \
-      -Dquotacheck=false \
-      -Dsysusers=false \
-      -Dtmpfiles=false \
-      -Dimportd=false \
-      -Dhwdb=false \
-      -Drfkill=false \
-      -Dxdg-autostart=false \
-      -Dman=false \
-      -Dhtml=false \
-      -Dtranslations=false \
-      -Dinstall-sysconfdir=false \
-      -Dseccomp=false \
-      -Dselinux=false \
-      -Dapparmor=false \
-      -Dsmack=false \
-      -Dpolkit=false \
-      -Dima=false \
-      -Dacl=false \
-      -Daudit=false \
-      -Dblkid=false \
-      -Dfdisk=false \
-      -Dkmod=false \
-      -Dpam=false \
-      -Dpwquality=false \
-      -Dmicrohttpd=false \
-      -Dlibcryptsetup=false \
-      -Dlibcurl=false \
-      -Didn=false \
-      -Dlibidn2=false \
-      -Dlibidn=false \
-      -Dlibiptc=false \
-      -Dqrencode=false \
-      -Dgcrypt=false \
-      -Dgnutls=false \
-      -Dopenssl=false \
-      -Dcryptolib=auto \
-      -Dp11kit=false \
-      -Dlibfido2=false \
-      -Dtpm2=false \
-      -Delfutils=false \
-      -Dzlib=false \
-      -Dbzip2=false \
-      -Dxz=false \
-      -Dlz4=false \
-      -Dzstd=false \
-      -Dxkbcommon=false \
-      -Dpcre2=false \
-      -Dglib=false \
-      -Ddbus=false \
-      -Dgnu-efi=false \
-      -Dtests=false \
-      -Durlify=false \
-      -Danalyze=false \
-      -Dbpf-framework=false \
-      -Dkernel-install=false \
-      --libdir=lib
+  if [ $ret != 0 ]; then
+    echo "not found libudev"
+    SYSD_MESON_ARGS="-Dauto_features=disabled"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmode=developer"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-udev-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-systemctl-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-networkd-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-timesyncd-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-journalctl-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-boot-shared=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfirst-boot-full-preset=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libsystemd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libudev=true"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstandalone-binaries=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinitrd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcompat-mutable-uid-boundaries=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnscd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-shell=''"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-tty=''"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dutmp=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhibernate=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dldconfig=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dresolve=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Defi=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Denvironment-d=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbinfmt=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drepart=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysupdate=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcoredump=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpstore=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Doomd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlogind=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhostnamed=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlocaled=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmachined=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dportabled=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysext=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Duserdb=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhomed=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnetworkd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimedated=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimesyncd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dremote=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcreate-log-dirs=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-myhostname=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-mymachines=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-resolve=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-systemd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drandomseed=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbacklight=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dvconsole=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dquotacheck=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysusers=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtmpfiles=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dimportd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhwdb=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drfkill=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxdg-autostart=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dman=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhtml=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtranslations=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinstall-sysconfdir=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dseccomp=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dselinux=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dapparmor=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsmack=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpolkit=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dima=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dacl=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Daudit=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dblkid=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfdisk=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkmod=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpam=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpwquality=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmicrohttpd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcryptsetup=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcurl=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Didn=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn2=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibiptc=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dqrencode=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgcrypt=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnutls=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dopenssl=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcryptolib=auto"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dp11kit=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibfido2=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm2=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Delfutils=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzlib=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbzip2=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxz=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlz4=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzstd=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxkbcommon=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpcre2=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dglib=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddbus=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnu-efi=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtests=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Durlify=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Danalyze=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbpf-framework=false"
+    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkernel-install=false"
+    downloadAndExtract file="v252.tar.gz" path="https://github.com/systemd/systemd/archive/refs/tags/v252.tar.gz"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+    PATH=$PATH:$SUBPROJECT_DIR/gperf-3.1/dist/bin \
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP:$PKG_UTIL_LINUX \
+    C_INCLUDE_PATH=$SUBPROJECT_DIR/libcap/dist/usr/include \
+    LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64 \
+    buildMesonProject srcdir="systemd-252" prefix="/usr/local" mesonargs="$SYSD_MESON_ARGS" destdir="$SUBPROJECT_DIR/systemd-252/dist"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
 
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
-    C_INCLUDE_PATH=$SCRT_DIR/subprojects/libcap/dist/usr/include \
-    LIBRARY_PATH=$SCRT_DIR/subprojects/libcap/dist/lib64 \
-    meson compile -C build
-    DESTDIR=$(pwd)/build/dist meson install -C build
-    cd ..
   else
     echo "libudev already found."
   fi
 
-  git -C libgudev pull 2> /dev/null || git clone -b 237 https://gitlab.gnome.org/GNOME/libgudev.git
-  cd libgudev
-  rm -rf build
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
-  meson setup build \
-    --default-library=static \
-    -Dtests=disabled \
-    -Dintrospection=disabled \
-    -Dvapi=disabled \
-    --prefix=$(pwd)/build/dist \
-    --libdir=lib
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
+  pkg-config --exists --print-errors "glib-2.0 >= 2.74.1"
+  ret=$?
+  if [ $ret != 0 ]; then 
+    echo "not found glib-2.0"
+    downloadAndExtract file="glib-2.74.1.tar.xz" path="https://download.gnome.org/sources/glib/2.74/glib-2.74.1.tar.xz"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+    buildMesonProject srcdir="glib-2.74.1" prefix="$SUBPROJECT_DIR/glib-2.74.1/dist" mesonargs="-Dpcre2:test=false -Dpcre2:grep=false -Dxattr=false -Db_lundef=false -Dtests=false -Dglib_debug=disabled -Dglib_assert=false -Dglib_checks=false"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+  else
+    echo "glib already found."
+  fi
 
-  C_INCLUDE_PATH=$SCRT_DIR/subprojects/systemd/build/dist/usr/include \
-  LIBRARY_PATH=$SCRT_DIR/subprojects/libcap/dist/lib64 \
-  meson compile -C build
-  meson install -C build
-  cd ..
+  pullOrClone path=https://gitlab.gnome.org/GNOME/libgudev.git tag=237
+  C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-252/dist/usr/local/include \
+  LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin \
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV:$PKG_GLIB \
+  buildMesonProject srcdir="libgudev" prefix="$SUBPROJECT_DIR/libgudev/build/dist" mesonargs="-Dvapi=disabled -Dtests=disabled -Dintrospection=disabled"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 
 else
   echo "gudev-1.0 already found."
 fi
+
 
 ################################################################
 # 
@@ -321,18 +946,17 @@ fi
 #   sudo apt install llibasound2-dev (tested 1.2.7.2)
 # 
 ################################################################
-PKG_ALSA=$SCRT_DIR/subprojects/alsa-lib/build/dist/lib/pkgconfig
+PKG_ALSA=$SUBPROJECT_DIR/alsa-lib/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_ALSA \
 pkg-config --exists --print-errors "alsa >= 1.2.7.2"
 ret=$?
-if [ $ret != 0 ]; then  
-  git -C alsa-lib pull 2> /dev/null || git clone -b v1.2.8 git://git.alsa-project.org/alsa-lib.git
-  cd alsa-lib
-  autoreconf -vif
-  ./configure --prefix=$(pwd)/build/dist --enable-static=yes --enable-shared=yes
-  make -j$(nproc)
-  make install
-  cd ..
+if [ $ret != 0 ]; then
+  echo "not found alsa"
+  pullOrClone path=git://git.alsa-project.org/alsa-lib.git tag=v1.2.8
+  ACLOCAL_PATH=$SUBPROJECT_DIR/gettext-0.21.1/dist/share/aclocal \
+  # buildMakeProject srcdir="alsa-lib" prefix="$SUBPROJECT_DIR/alsa-lib/build/dist" configure="--enable-pic --enable-static=yes --enable-shared=no" autoreconf="-vif"
+  buildMakeProject srcdir="alsa-lib" prefix="$SUBPROJECT_DIR/alsa-lib/build/dist" configure="--enable-pic --enable-static=no --enable-shared=yes" autoreconf="-vif"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 else
   echo "alsa-lib already found."
 fi
@@ -343,110 +967,91 @@ fi
 #   sudo apt install libpulse-dev (tested 16.1)
 # 
 ################################################################
-PKG_PULSE=$SCRT_DIR/subprojects/pulseaudio/build/dist/lib/pkgconfig
+PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
 pkg-config --exists --print-errors "libpulse >= 16.1"
 ret=$?
 if [ $ret != 0 ]; then 
-  PKG_LIBSNDFILE=$SCRT_DIR/subprojects/libsndfile/dist/lib/pkgconfig
+  echo "not found libpulse"
+
+  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+  cmake --version
+  ret=$?
+  if [ $ret != 0 ]; then
+    echo "not found cmake"
+    python3 -m pip install cmake
+    status=$?
+  else
+    echo "cmake already found."
+  fi
+
+  if [ $status -ne 0 ]; then
+      printf "${RED}*****************************\n${NC}"
+      printf "${RED}*** Failed to install cmake from pip ${srcdir} ***\n${NC}"
+      printf "${RED}*****************************\n${NC}"
+      exit 1
+  fi
+
+  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
   pkg-config --exists --print-errors "sndfile >= 1.2.0"
   ret=$?
-  if [ $ret != 0 ]; then 
-    git -C libsndfile pull 2> /dev/null || git clone -b 1.2.0 https://github.com/libsndfile/libsndfile.git
-    cd libsndfile
-    # autoreconf -vif
-    cmake --target clean
-    cmake -G "Unix Makefiles" \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$(pwd)/dist" \
-        -DBUILD_EXAMPLES=off \
-        -DBUILD_TESTING=off \
-        -DBUILD_SHARED_LIBS=on \
-        -DINSTALL_PKGCONFIG_MODULE=on \
-        -DINSTALL_MANPAGES=off 
-    make -j$(nproc)
-    make install
-    cd ..
+  if [ $ret != 0 ]; then
+    echo "not found sndfile"
+    LIBSNDFILE_CMAKEARGS="-DBUILD_EXAMPLES=off"
+    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_TESTING=off"
+    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_SHARED_LIBS=on"
+    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_PKGCONFIG_MODULE=on"
+    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_MANPAGES=off"
+    pullOrClone path="https://github.com/libsndfile/libsndfile.git" tag=1.2.0
+    mkdir "libsndfile/build"
+    buildMakeProject srcdir="libsndfile/build" prefix="$SUBPROJECT_DIR/libsndfile/dist" cmakedir=".." cmakeargs="$LIBSNDFILE_CMAKEARGS"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
   else
     echo "sndfile already found."
   fi
 
-  PKG_CHECK=$SCRT_DIR/subprojects/check/build/dist/lib/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
-  pkg-config --exists --print-errors "check >= 0.15.2"
-  ret=$?
-  if [ $ret != 0 ]; then 
-    git -C check pull 2> /dev/null || git clone -b 0.15.2 https://github.com/libcheck/check.git
-    cd check
-    autoreconf -vif
-    ./configure --prefix=$(pwd)/build/dist --enable-static=yes --enable-shared=no --enable-build-docs=no --enable-timeout-tests=no
-    make -j$(nproc)
-    make install
-    cd ..
-  else
-    echo "check already found."
-  fi
 
-  git -C pulseaudio pull 2> /dev/null || git clone -b v16.1 https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git
-  cd pulseaudio
-  rm -rf build
+  PULSE_MESON_ARGS="-Ddaemon=false"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddoxygen=false"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dman=false"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dtests=false"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddatabase=simple"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dbashcompletiondir=no"
+  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dzshcompletiondir=no"
+  pullOrClone path="https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git" tag=v16.1
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
-  meson setup build \
-    --default-library=static \
-    -Ddaemon=false \
-    -Ddoxygen=false \
-    -Dman=false \
-    -Dtests=false \
-    -Ddatabase=simple \
-    -Dbashcompletiondir=no \
-    -Dzshcompletiondir=no \
-    --prefix=$(pwd)/build/dist \
-    --libdir=lib
+  buildMesonProject srcdir="pulseaudio" prefix="$SUBPROJECT_DIR/pulseaudio/build/dist" mesonargs="$PULSE_MESON_ARGS"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 
-  meson compile -C build
-  meson install -C build
-  cd ..
 else
   echo "libpulse already found."
 fi
 
+################################################################
+# 
+#    Build nasm dependency
+#   sudo apt install nasm
+# 
+################################################################
+NASM_BIN=$SUBPROJECT_DIR/nasm-2.15.05/dist/bin
+if [ -z "$(checkProg name='nasm' args='--version' path=$NASM_BIN)" ]; then
+  echo "not found nasm"
+  downloadAndExtract file=nasm-2.15.05.tar.bz2 path=https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/nasm-2.15.05.tar.bz2
+  buildMakeProject srcdir="nasm-2.15.05" prefix="$SUBPROJECT_DIR/nasm-2.15.05/dist"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+else
+    echo "nasm already installed."
+fi
 
 ################################################################
 # 
 #    Build Gstreamer dependency
 # 
 ################################################################
-git -C gstreamer pull 2> /dev/null || git clone -b 1.21.3 https://gitlab.freedesktop.org/gstreamer/gstreamer.git
-cd gstreamer
-
-GST_DIR=$(pwd)
-# Add tinyalsa fallback subproject
-# echo "[wrap-git]" > subprojects/tinyalsa.wrap
-# echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
-# echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
-# echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
-
-# Full Build >9k Files
-# meson build \
-#   --buildtype=release \
-#   --strip \
-#   --default-library=static \
-#   --wrap-mode=forcefallback \
-#   -Dpango:harfbuzz=disabled \
-#   -Dfreetype2:harfbuzz=disabled \
-#   -Dpixman:tests=disabled \
-#   -Dintrospection=disabled \
-#   -Dpython=disabled \
-#   -Dtests=disabled \
-#   -Dexamples=disabled \
-#   -Dgst-plugins-bad:nvcodec=enabled \
-#   -Dgst-plugins-bad:iqa=disabled \
-#   -Dgpl=enabled \
-#   --pkg-config-path=/home/quedale/git/OnvifRtspLauncher/subprojects/gstreamer/build/dist/lib/x86_64-linux-gnu/pkgconfig \
-#   --prefix=$(pwd)/build/dist
-
+# pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.3
 MESON_PARAMS=""
 
 # Force disable subproject features
@@ -454,10 +1059,10 @@ MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false"
 MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=false"
 MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
 
+# Gstreamer options
 MESON_PARAMS="$MESON_PARAMS -Dbase=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgood=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dbad=enabled"
-# MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgpl=enabled"
 MESON_PARAMS="$MESON_PARAMS -Drtsp_server=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:app=enabled"
@@ -492,10 +1097,9 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:switchbin=enabled"
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
+# MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
 # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
 
 #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
@@ -505,123 +1109,133 @@ MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
 # This is required for the snapshot feature
 MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
 
-#  -Dgst-plugins-base:overlaycomposition=enabled \
-#  -Dgst-plugins-good:oss=enabled \
-#  -Dgst-plugins-good:oss4=enabled \
-#  -Dgst-plugins-bad:mpegtsmux=enabled \
-#  -Dgst-plugins-bad:mpegtsdemux=enabled \
+MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+MESON_PARAMS="--strip $MESON_PARAMS"
 
-# Customized build <2K file
-rm -rf build
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_GUDEV:$PKG_UDEV \
-meson setup build \
-  --buildtype=release \
-  --strip \
-  --default-library=static \
-  --wrap-mode=forcefallback \
-  -Dauto_features=disabled \
-  $MESON_PARAMS \
-  --prefix=$GST_DIR/build/dist \
-  --libdir=lib
+# Add tinyalsa fallback subproject
+# echo "[wrap-git]" > subprojects/tinyalsa.wrap
+# echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
+# echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
+# echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
+# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
 
-LIBRARY_PATH=$LIBRARY_PATH:$SCRT_DIR/subprojects/systemd/build/dist/usr/lib \
-meson compile -C build
-meson install -C build
+GST_PKG_PATH=:$SCRT_DIR/build/dist/lib/pkgconfig
+LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB  \
+buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build/dist" mesonargs="$MESON_PARAMS" builddir="build"
+if [ $FAILED -eq 1 ]; then exit 1; fi
+
 
 if [ $ENABLE_LIBAV -eq 1 ]; then
   echo "LIBAV Feature enabled..."
-  cd ..
   #######################
   #
   # Custom FFmpeg build
   #   For some reason, Gstreamer's meson dep doesn't build any codecs
   #
   #######################
-  git -C FFmpeg pull 2> /dev/null || git clone -b n5.1.2 https://github.com/FFmpeg/FFmpeg.git
-  cd FFmpeg
 
-  ./configure --prefix=$(pwd)/dist \
-      --disable-lzma \
-      --disable-doc \
-      --disable-shared \
-      --enable-static \
-      --enable-nonfree \
-      --enable-version3 \
-      --enable-gpl 
-  make -j$(nproc)
-  make install
-  rm -rf dist/lib/*.so
-  cd ..
+  FFMPEG_CONFIGURE_ARGS="--disable-lzma"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-doc"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-shared"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-static"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-nonfree"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-version3"
+  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-gpl"
 
-  #######################
-  #
-  # Rebuild gstreamer with libav with nofallback
-  #   TODO : optionally add omx or rkmpp etc
-  #
-  #######################
-  #Rebuild with custom ffmpeg build
-  cd gstreamer
+  FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
+  FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
+  if [ -z "$(checkProg name='ffmpeg' args='-version' path=$FFMPEG_BIN)" ]; then
+    pullOrClone path="https://github.com/FFmpeg/FFmpeg.git" tag=n5.0.2
+    PATH=$PATH:$NASM_BIN \
+    buildMakeProject srcdir="FFmpeg" prefix="$SUBPROJECT_DIR/FFmpeg/dist" configure="$FFMPEG_CONFIGURE_ARGS"
+    if [ $FAILED -eq 1 ]; then exit 1; fi
+    rm -rf $SUBPROJECT_DIR/FFmpeg/dist/lib/*.so
+  else
+      echo "FFmpeg already installed."
+  fi
+
   MESON_PARAMS="-Dlibav=enabled"
-  rm -rf libav_build
-  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
-  meson setup libav_build \
-  --buildtype=release \
-  --strip \
-  --default-library=static \
-  --wrap-mode=nofallback \
-  -Dauto_features=disabled \
-  $MESON_PARAMS \
-  --prefix=$GST_DIR/libav_build/dist \
-  --libdir=lib
-  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
-  meson compile -C libav_build
-  LIBRARY_PATH=$LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_DIR/build/dist/lib:$SCRT_DIR/subprojects/FFmpeg/dist/lib \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_DIR/build/dist/lib/pkgconfig:$SCRT_DIR/subprojects/FFmpeg/dist/lib/pkgconfig \
-  meson install -C libav_build
+  MESON_PARAMS="$MESON_PARAMS --strip"
+  MESON_PARAMS="$MESON_PARAMS --wrap-mode=nofallback"
+  MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
+
+  LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+  buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/libav_build/dist" mesonargs="$MESON_PARAMS" builddir="libav_build"
+  echo "path : $GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 
   #Remove shared lib to force static resolution to .a
-  rm -rf $GST_DIR/libav_build/dist/lib/*.so
-  rm -rf $GST_DIR/libav_build/dist/lib/gstreamer-1.0/*.so
+  rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/*.so
+  rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/*.so
 fi
 
 if [ $ENABLE_RPI -eq 1 ]; then
   echo "Legacy RPi OMX Feature enabled..."
   # OMX is build sperately, because it depends on a build variable defined in the shared build.
   #   So we build both to get the static ones.
-  rm -rf build_omx
+  MESON_PARAMS="--strip"
+  MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
+  MESON_PARAMS="$MESON_PARAMS -Domx=enabled"
+  MESON_PARAMS="$MESON_PARAMS -Dgst-omx:header_path=/opt/vc/include/IL"
+  MESON_PARAMS="$MESON_PARAMS -Dgst-omx:target=rpi"
+  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rpicamsrc=enabled"
 
-  PKG_CONFIG_PATH=$GST_DIR/build/dist/lib/pkgconfig \
-  meson setup build_omx \
-    --buildtype=release \
-    --strip \
-    --default-library=both \
-    -Dauto_features=disabled \
-    -Domx=enabled \
-    -Dgst-omx:header_path=/opt/vc/include/IL \
-    -Dgst-omx:target=rpi \
-    -Dgst-plugins-good:rpicamsrc=enabled \
-    --prefix=$GST_DIR/build_omx/dist \
-      --libdir=lib
-  
-  LIBRARY_PATH=$SCRT_DIR/subprojects/systemd/build/dist/usr/lib \
-  meson compile -C build_omx
-  meson install -C build_omx
+  PKG_CONFIG_PATH=$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig \
+  buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build_omx/dist" mesonargs="$MESON_PARAMS" builddir="build_omx" defaultlib=both
 
+  # rm -rf build_omx
+
+  # PKG_CONFIG_PATH=$GST_DIR/build/dist/lib/pkgconfig \
+  # meson setup build_omx \
+  #   --buildtype=release \
+  #   --strip \
+  #   --default-library=both \
+  #   -Dauto_features=disabled \
+  #   -Domx=enabled \
+  #   -Dgst-omx:header_path=/opt/vc/include/IL \
+  #   -Dgst-omx:target=rpi \
+  #   -Dgst-plugins-good:rpicamsrc=enabled \
+  #   --prefix=$GST_DIR/build_omx/dist \
+  #     --libdir=lib
+  # status=$?
+  # if [ $status -ne 0 ]; then
+  #     printf "${RED}*****************************\n${NC}"
+  #     printf "${RED}*** Gstreamer omx setup failed ${srcdir} ***\n${NC}"
+  #     printf "${RED}*****************************\n${NC}"
+  #     exit 1
+  # fi
+  # LIBRARY_PATH=$SUBPROJECT_DIR/systemd/build/dist/usr/lib \
+  # meson compile -C build_omx
+  # status=$?
+  # if [ $status -ne 0 ]; then
+  #     printf "${RED}*****************************\n${NC}"
+  #     printf "${RED}*** Gstreamer omx compile failed ${srcdir} ***\n${NC}"
+  #     printf "${RED}*****************************\n${NC}"
+  #     exit 1
+  # fi
+  # meson install -C build_omx
+  # status=$?
+  # if [ $status -ne 0 ]; then
+  #     printf "${RED}*****************************\n${NC}"
+  #     printf "${RED}*** Gstreamer omx install failed ${srcdir} ***\n${NC}"
+  #     printf "${RED}*****************************\n${NC}"
+  #     exit 1
+  # fi
 
   #Remove shared lib to force static resolution to .a
-  rm -rf $GST_DIR/build_omx/dist/lib/*.so
-  rm -rf $GST_DIR/build_omx/dist/lib/gstreamer-1.0/*.so
+  rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/*.so
+  rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/*.so
 fi
 
 #Remove shared lib to force static resolution to .a
 #We used the shared libs to recompile gst-omx plugins
-rm -rf $GST_DIR/build/dist/lib/*.so
-rm -rf $GST_DIR/build/dist/lib/gstreamer-1.0/*.so
+rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/*.so
+rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/*.so
 
 ################################################################
 # 

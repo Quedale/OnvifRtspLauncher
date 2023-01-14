@@ -260,7 +260,7 @@ v4l2ParameterResults * configure_v4l2_device(char * device, v4l2ParameterInput d
     v4l2MatchResults * results = v4l2MatchResult__create();
     int fd = v4l2_open(device, O_RDWR);
     if (fd != -1)
-    {   
+    {
         
         find_compatible_format(fd, results, desires);
         if(results->p_match != NULL){
@@ -308,6 +308,8 @@ v4l2ParameterResults * configure_v4l2_device(char * device, v4l2ParameterInput d
         }
         v4l2_close(fd);
 
+    } else {
+        GST_ERROR("Failed to open device /dev/video0\n");
     }
 
     return ret_val;
