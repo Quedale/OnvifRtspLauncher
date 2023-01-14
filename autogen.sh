@@ -1051,7 +1051,7 @@ fi
 #    Build Gstreamer dependency
 # 
 ################################################################
-# pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.3
+pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.3
 MESON_PARAMS=""
 
 # Force disable subproject features
