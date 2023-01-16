@@ -49,6 +49,8 @@ sudo apt install python3-pip
 python3 -m pip install pip --upgrade
 python3 -m pip install meson
 python3 -m pip install ninja
+sudo apt install gettext
+sudo apt install pkg-config
 sudo apt install libtool
 sudo apt install flex
 sudo apt install bison
@@ -56,15 +58,11 @@ sudo apt install nasm
 sudo apt install libasound2-dev
 sudo apt install libpulse-dev
 sudo apt install libgudev-1.0-dev
+sudo apt install libv4l-dev
 ```
 I'm not sure if this is true for all distros, but this is required to get the new binary in the system's PATH
 ```
 export PATH=$PATH:$HOME/.local/bin
-```
-
-Install gettext
-```
-sudo apt-get install gettext
 ```
 
 # How to build

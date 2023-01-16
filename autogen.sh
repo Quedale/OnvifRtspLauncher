@@ -744,12 +744,12 @@ fi
 ################################################################
 # 
 #     Build glib dependency
-#   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.62.0)
+#   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.64.0)
 # 
 ################################################################
 PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
-pkg-config --exists --print-errors "glib-2.0 >= 2.62.0"
+pkg-config --exists --print-errors "glib-2.0 >= 2.64.0"
 ret=$?
 if [ $ret != 0 ]; then 
   echo "not found glib-2.0"
@@ -1056,7 +1056,7 @@ fi
 #    Build Gstreamer dependency
 # 
 ################################################################
-pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.3
+pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.90
 MESON_PARAMS=""
 
 # Force disable subproject features
