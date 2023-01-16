@@ -724,7 +724,7 @@ fi
 ################################################################
 # 
 #    Build v4l2-utils dependency
-#   sudo apt install libv4l2-dev (tested 1.16.3)
+#   sudo apt install libv4l-dev (tested 1.16.3)
 # 
 ################################################################
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SUBPROJECT_DIR/v4l-utils/dist/lib/pkgconfig \
@@ -948,12 +948,12 @@ fi
 ################################################################
 # 
 #    Build alsa-lib dependency
-#   sudo apt install llibasound2-dev (tested 1.2.7.2)
+#   sudo apt install libasound2-dev (tested 1.1.8)
 # 
 ################################################################
 PKG_ALSA=$SUBPROJECT_DIR/alsa-lib/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_ALSA \
-pkg-config --exists --print-errors "alsa >= 1.2.7.2"
+pkg-config --exists --print-errors "alsa >= 1.1.8"
 ret=$?
 if [ $ret != 0 ]; then
   echo "not found alsa"
@@ -969,12 +969,12 @@ fi
 ################################################################
 # 
 #    Build libpulse dependency
-#   sudo apt install libpulse-dev (tested 16.1)
+#   sudo apt install libpulse-dev (tested 12.2)
 # 
 ################################################################
 PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
-pkg-config --exists --print-errors "libpulse >= 16.1"
+pkg-config --exists --print-errors "libpulse >= 12.2"
 ret=$?
 if [ $ret != 0 ]; then 
   echo "not found libpulse"

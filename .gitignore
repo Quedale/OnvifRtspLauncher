@@ -12,5 +12,6 @@ config.sub
 config.guess
 compile
 aclocal.m4
-subprojects
+subprojects*
 test-driver
+ar-lib
