@@ -536,8 +536,9 @@ priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory *
         }
         GstElement * audio_src = gst_element_factory_make (factory->priv->microphone_element, "audio_src");
         if(factory->priv->microphone_device 
-            && !strcmp(factory->priv->microphone_device,"alsasrc") 
+            && !strcmp(factory->priv->microphone_element,"alsasrc") 
             && strlen(factory->priv->microphone_device) > 1){
+            GST_DEBUG("Setting alsa mic to '%s'",factory->priv->microphone_device);
             g_object_set(G_OBJECT(audio_src), "device", factory->priv->microphone_device,NULL);
         }
         GstElement * audio_resampler = gst_element_factory_make ("audioresample", "audio_resampler");
