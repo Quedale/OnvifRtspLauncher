@@ -743,11 +743,30 @@ fi
 
 ################################################################
 # 
+#     Build glib dependency
+#   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.62.0)
+# 
+################################################################
+PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
+pkg-config --exists --print-errors "glib-2.0 >= 2.62.0"
+ret=$?
+if [ $ret != 0 ]; then 
+  echo "not found glib-2.0"
+  downloadAndExtract file="glib-2.74.1.tar.xz" path="https://download.gnome.org/sources/glib/2.74/glib-2.74.1.tar.xz"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+  buildMesonProject srcdir="glib-2.74.1" prefix="$SUBPROJECT_DIR/glib-2.74.1/dist" mesonargs="-Dpcre2:test=false -Dpcre2:grep=false -Dxattr=false -Db_lundef=false -Dtests=false -Dglib_debug=disabled -Dglib_assert=false -Dglib_checks=false"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+else
+  echo "glib already found."
+fi
+
+################################################################
+# 
 #    Build gudev-1.0 dependency
 #   sudo apt install libgudev-1.0-dev (tested 232)
 # 
 ################################################################
-PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
 PKG_UDEV=$SUBPROJECT_DIR/systemd-252/dist/usr/local/lib/pkgconfig
 PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV:$PKG_GLIB \
@@ -914,19 +933,6 @@ if [ $ret != 0 ]; then
     echo "libudev already found."
   fi
 
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
-  pkg-config --exists --print-errors "glib-2.0 >= 2.74.1"
-  ret=$?
-  if [ $ret != 0 ]; then 
-    echo "not found glib-2.0"
-    downloadAndExtract file="glib-2.74.1.tar.xz" path="https://download.gnome.org/sources/glib/2.74/glib-2.74.1.tar.xz"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-    buildMesonProject srcdir="glib-2.74.1" prefix="$SUBPROJECT_DIR/glib-2.74.1/dist" mesonargs="-Dpcre2:test=false -Dpcre2:grep=false -Dxattr=false -Db_lundef=false -Dtests=false -Dglib_debug=disabled -Dglib_assert=false -Dglib_checks=false"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-  else
-    echo "glib already found."
-  fi
-
   pullOrClone path=https://gitlab.gnome.org/GNOME/libgudev.git tag=237
   C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-252/dist/usr/local/include \
   LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
@@ -938,7 +944,6 @@ if [ $ret != 0 ]; then
 else
   echo "gudev-1.0 already found."
 fi
-
 
 ################################################################
 # 
@@ -1177,13 +1182,13 @@ if [ $ENABLE_LIBAV -eq 1 ]; then
   MESON_PARAMS="$MESON_PARAMS --strip"
   MESON_PARAMS="$MESON_PARAMS --wrap-mode=nofallback"
   MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
+  MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
 
   LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
   LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
   PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
   PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
   buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/libav_build/dist" mesonargs="$MESON_PARAMS" builddir="libav_build"
-  echo "path : $GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG"
   if [ $FAILED -eq 1 ]; then exit 1; fi
 
   #Remove shared lib to force static resolution to .a
@@ -1201,48 +1206,14 @@ if [ $ENABLE_RPI -eq 1 ]; then
   MESON_PARAMS="$MESON_PARAMS -Dgst-omx:header_path=/opt/vc/include/IL"
   MESON_PARAMS="$MESON_PARAMS -Dgst-omx:target=rpi"
   MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rpicamsrc=enabled"
-
-  PKG_CONFIG_PATH=$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig \
+  MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+  
+  LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
   buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build_omx/dist" mesonargs="$MESON_PARAMS" builddir="build_omx" defaultlib=both
-
-  # rm -rf build_omx
-
-  # PKG_CONFIG_PATH=$GST_DIR/build/dist/lib/pkgconfig \
-  # meson setup build_omx \
-  #   --buildtype=release \
-  #   --strip \
-  #   --default-library=both \
-  #   -Dauto_features=disabled \
-  #   -Domx=enabled \
-  #   -Dgst-omx:header_path=/opt/vc/include/IL \
-  #   -Dgst-omx:target=rpi \
-  #   -Dgst-plugins-good:rpicamsrc=enabled \
-  #   --prefix=$GST_DIR/build_omx/dist \
-  #     --libdir=lib
-  # status=$?
-  # if [ $status -ne 0 ]; then
-  #     printf "${RED}*****************************\n${NC}"
-  #     printf "${RED}*** Gstreamer omx setup failed ${srcdir} ***\n${NC}"
-  #     printf "${RED}*****************************\n${NC}"
-  #     exit 1
-  # fi
-  # LIBRARY_PATH=$SUBPROJECT_DIR/systemd/build/dist/usr/lib \
-  # meson compile -C build_omx
-  # status=$?
-  # if [ $status -ne 0 ]; then
-  #     printf "${RED}*****************************\n${NC}"
-  #     printf "${RED}*** Gstreamer omx compile failed ${srcdir} ***\n${NC}"
-  #     printf "${RED}*****************************\n${NC}"
-  #     exit 1
-  # fi
-  # meson install -C build_omx
-  # status=$?
-  # if [ $status -ne 0 ]; then
-  #     printf "${RED}*****************************\n${NC}"
-  #     printf "${RED}*** Gstreamer omx install failed ${srcdir} ***\n${NC}"
-  #     printf "${RED}*****************************\n${NC}"
-  #     exit 1
-  # fi
+  if [ $FAILED -eq 1 ]; then exit 1; fi
 
   #Remove shared lib to force static resolution to .a
   rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/*.so
