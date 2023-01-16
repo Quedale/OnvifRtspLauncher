@@ -1129,24 +1129,41 @@ if [ $FAILED -eq 1 ]; then exit 1; fi
 
 if [ $ENABLE_LIBAV -eq 1 ]; then
   echo "LIBAV Feature enabled..."
-  #######################
-  #
-  # Custom FFmpeg build
-  #   For some reason, Gstreamer's meson dep doesn't build any codecs
-  #
-  #######################
-
-  FFMPEG_CONFIGURE_ARGS="--disable-lzma"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-doc"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-shared"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-static"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-nonfree"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-version3"
-  FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-gpl"
 
   FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
   FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
-  if [ -z "$(checkProg name='ffmpeg' args='-version' path=$FFMPEG_BIN)" ]; then
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "libavcodec"
+  ret1=$?
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "libavfilter"
+  ret2=$?
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "libavformat"
+  ret3=$?
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "libswresample"
+  ret4=$?
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "libswscale"
+  ret5=$?
+  if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ret5 != 0 ]; then
+    #######################
+    #
+    # Custom FFmpeg build
+    #   For some reason, Gstreamer's meson dep doesn't build any codecs
+    #
+    #######################
+
+    FFMPEG_CONFIGURE_ARGS="--disable-lzma"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-doc"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-shared"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-static"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-nonfree"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-version3"
+    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-gpl"
+
+
     pullOrClone path="https://github.com/FFmpeg/FFmpeg.git" tag=n5.0.2
     PATH=$PATH:$NASM_BIN \
     buildMakeProject srcdir="FFmpeg" prefix="$SUBPROJECT_DIR/FFmpeg/dist" configure="$FFMPEG_CONFIGURE_ARGS"
