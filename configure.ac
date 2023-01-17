@@ -72,6 +72,7 @@ AM_COND_IF([CLIENTCOND],[
     AC_MSG_NOTICE(Disabled Client Tool.)
     AC_SUBST(CLIENT_PROG)
 ])
+AC_SUBST(CLIENT_LIB, "gstximagesink gstxvimagesink")
 
 AC_ARG_VAR(PKG_CONFIG_PATH, 'pkg-config search path.')
 
