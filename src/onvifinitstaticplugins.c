@@ -2,7 +2,7 @@
 #include <gst/gst.h>
 
 
-
+#ifdef STATIC_BUILD
 
 
 GST_PLUGIN_STATIC_DECLARE(coreelements);
@@ -419,3 +419,5 @@ onvif_init_static_plugins (void)
     g_once_init_leave (&initialization_value, 1);
   }
 }
+
+#endif

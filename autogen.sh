@@ -17,17 +17,20 @@ FAILED=0
 ENABLE_RPI=0
 ENABLE_LIBAV=0
 ENABLE_CLIENT=0
+ENABLE_LATEST=0
 i=1;
 for arg in "$@"
 do
-    if [ "$arg" == "--enable-libav" ]; then
-        ENABLE_LIBAV=1
-    elif [ "$arg" == "--enable-rpi" ]; then
-        ENABLE_RPI=1
-    elif [ "$arg" == "--enable-client" ]; then
-        ENABLE_CLIENT=1
-    fi
-    i=$((i + 1));
+  if [ "$arg" == "--enable-libav" ]; then
+    ENABLE_LIBAV=1
+  elif [ "$arg" == "--enable-rpi" ]; then
+    ENABLE_RPI=1
+  elif [ "$arg" == "--enable-client" ]; then
+    ENABLE_CLIENT=1
+  elif [ "$arg" == "----enable-latest" ]; then
+    ENABLE_LATEST=1
+  fi
+  i=$((i + 1));
 done
 
 # Define color code constants
@@ -228,12 +231,7 @@ buildMakeProject(){
     printf "${ORANGE}*****************************\n${NC}"
     printf "${ORANGE}*** bootstrap.sh ${srcdir} ***\n${NC}"
     printf "${ORANGE}*****************************\n${NC}"
-    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-    # PATH="$PATH" \
-    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-        ./bootstrap.sh
+    ./bootstrap.sh
     status=$?
     if [ $status -ne 0 ]; then
         printf "${RED}*****************************\n${NC}"
@@ -248,12 +246,7 @@ buildMakeProject(){
     printf "${ORANGE}*****************************\n${NC}"
     printf "${ORANGE}*** autogen ${srcdir} ***\n${NC}"
     printf "${ORANGE}*****************************\n${NC}"
-    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-    # PATH="$PATH" \
-    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-        ./autogen.sh ${autogen}
+    ./autogen.sh ${autogen}
     status=$?
     if [ $status -ne 0 ]; then
         printf "${RED}*****************************\n${NC}"
@@ -270,12 +263,7 @@ buildMakeProject(){
     printf "${ORANGE}*****************************\n${NC}"
     printf "${ORANGE}*** autoreconf ${srcdir} ***\n${NC}"
     printf "${ORANGE}*****************************\n${NC}"
-    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-    # PATH="$PATH" \
-    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-        autoreconf ${autoreconf}
+    autoreconf ${autoreconf}
     status=$?
     if [ $status -ne 0 ]; then
         printf "${RED}*****************************\n${NC}"
@@ -292,12 +280,6 @@ buildMakeProject(){
     printf "${ORANGE}*** cmake ${srcdir} ***\n${NC}"
     printf "${ORANGE}*** Args ${cmakeargs} ***\n${NC}"
     printf "${ORANGE}*****************************\n${NC}"
-
-    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-    # PATH="$PATH" \
-    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
     cmake -G "Unix Makefiles" \
       ${cmakeargs} \
       -DCMAKE_BUILD_TYPE=Release \
@@ -317,15 +299,9 @@ buildMakeProject(){
     printf "${ORANGE}*****************************\n${NC}"
     printf "${ORANGE}*** configure ${srcdir} ***\n${NC}"
     printf "${ORANGE}*****************************\n${NC}"
-
-    # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-    # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-    # PATH="$PATH" \
-    # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-        ./configure \
-            --prefix=${prefix} \
-            ${configure}
+    ./configure \
+        --prefix=${prefix} \
+        ${configure}
     status=$?
     if [ $status -ne 0 ]; then
       printf "${RED}*****************************\n${NC}"
@@ -346,12 +322,7 @@ buildMakeProject(){
   printf "${ORANGE}*** compile ${srcdir} ***\n${NC}"
   printf "${ORANGE}*** Make Args : ${makeargs} ***\n${NC}"
   printf "${ORANGE}*****************************\n${NC}"
-  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-  # PATH="$PATH" \
-  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-    make -j$(nproc) ${make}
+  make -j$(nproc) ${make}
   status=$?
   if [ $status -ne 0 ]; then
       printf "${RED}*****************************\n${NC}"
@@ -367,12 +338,7 @@ buildMakeProject(){
   printf "${ORANGE}*** install ${srcdir} ***\n${NC}"
   printf "${ORANGE}*** Make Args : ${makeargs} ***\n${NC}"
   printf "${ORANGE}*****************************\n${NC}"
-  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-  # PATH="$PATH" \
-  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-    make -j$(nproc) ${make} install ${installargs}
+  make -j$(nproc) ${make} install ${installargs}
   status=$?
   if [ $status -ne 0 ]; then
       printf "${RED}*****************************\n${NC}"
@@ -449,12 +415,6 @@ buildMesonProject() {
           printf "${ORANGE}*****************************\n${NC}"
           printf "${ORANGE}*** Download Subprojects ${srcdir} ***\n${NC}"
           printf "${ORANGE}*****************************\n${NC}"
-          # C_INCLUDE_PATH="${prefix}/include" \
-          # CPLUS_INCLUDE_PATH="${prefix}/include" \
-          # PATH="$HOME/bin:$PATH" \
-          # LIBRARY_PATH="${prefix}/lib:$LIBRARY_PATH" \
-          # LD_LIBRARY_PATH="${prefix}/lib" \
-          # PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" \
           #     meson subprojects download
       fi
 
@@ -464,13 +424,7 @@ buildMesonProject() {
           printf "${ORANGE}*** Meson Setup Patch ${srcdir} ***\n${NC}"
           printf "${ORANGE}*** ${setuppatch} ***\n${NC}"
           printf "${ORANGE}*****************************\n${NC}"
-          # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-          # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-          # PATH="$PATH" \
-          # LIBRARY_PATH="$LIBRARY_PATH" \
-          # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-          # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-              bash -c "${setuppatch}"
+          bash -c "${setuppatch}"
           status=$?
           if [ $status -ne 0 ]; then
               printf "${RED}*****************************\n${NC}"
@@ -485,24 +439,14 @@ buildMesonProject() {
       printf "${ORANGE}*****************************\n${NC}"
       printf "${ORANGE}*** Meson Setup ${srcdir} ***\n${NC}"
       printf "${ORANGE}*****************************\n${NC}"
-
-      # cd build_dir
-      # C_INCLUDE_PATH="${prefix}/include" \
-      # CPLUS_INCLUDE_PATH="${prefix}/include" \
-      # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-      # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-      # PATH="$PATH" \
-      # LIBRARY_PATH="$LIBRARY_PATH" \
-      # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-      # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-          meson setup $build_dir \
-              ${mesonargs} \
-              --default-library=$default_lib \
-              --prefix=${prefix} \
-              $bindir_val \
-              --libdir=lib \
-              --includedir=include \
-              --buildtype=release 
+      meson setup $build_dir \
+          ${mesonargs} \
+          --default-library=$default_lib \
+          --prefix=${prefix} \
+          $bindir_val \
+          --libdir=lib \
+          --includedir=include \
+          --buildtype=release 
       status=$?
       if [ $status -ne 0 ]; then
           printf "${RED}*****************************\n${NC}"
@@ -518,12 +462,6 @@ buildMesonProject() {
           printf "${ORANGE}*****************************\n${NC}"
           printf "${ORANGE}*** Meson Update ${srcdir} ***\n${NC}"
           printf "${ORANGE}*****************************\n${NC}"
-          # C_INCLUDE_PATH="${prefix}/include" \
-          # CPLUS_INCLUDE_PATH="${prefix}/include" \
-          # PATH="$HOME/bin:$PATH" \
-          # LIBRARY_PATH="${prefix}/lib:$LIBRARY_PATH" \
-          # LD_LIBRARY_PATH="${prefix}/lib" \
-          # PKG_CONFIG_PATH="${prefix}/lib/pkgconfig" \
           #     meson subprojects update
       fi
 
@@ -532,13 +470,7 @@ buildMesonProject() {
           printf "${ORANGE}*** Meson Setup Patch ${srcdir} ***\n${NC}"
           printf "${ORANGE}*** ${setuppatch} ***\n${NC}"
           printf "${ORANGE}*****************************\n${NC}"
-          # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-          # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-          # PATH="$PATH" \
-          # LIBRARY_PATH="$LIBRARY_PATH" \
-          # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-          # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-              bash -c "${setuppatch}"
+          bash -c "${setuppatch}"
           status=$?
           if [ $status -ne 0 ]; then
               printf "${RED}*****************************\n${NC}"
@@ -553,25 +485,15 @@ buildMesonProject() {
       printf "${ORANGE}*****************************\n${NC}"
       printf "${ORANGE}*** Meson Reconfigure $(pwd) ${srcdir} ***\n${NC}"
       printf "${ORANGE}*****************************\n${NC}"
-      # rm -rf build_dir #Cmake state somehow gets messed up
-      # mkdir build_dir
-      # cd build_dir
-
-      # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-      # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-      # PATH="$PATH" \
-      # LIBRARY_PATH="$LIBRARY_PATH" \
-      # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-      # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-          meson setup $build_dir \
-              ${mesonargs} \
-              --default-library=$default_lib \
-              --prefix=${prefix} \
-              $bindir_val \
-              --libdir=lib \
-              --includedir=include \
-              --buildtype=release \
-              --reconfigure
+      meson setup $build_dir \
+          ${mesonargs} \
+          --default-library=$default_lib \
+          --prefix=${prefix} \
+          $bindir_val \
+          --libdir=lib \
+          --includedir=include \
+          --buildtype=release \
+          --reconfigure
 
       status=$?
       if [ $status -ne 0 ]; then
@@ -587,13 +509,7 @@ buildMesonProject() {
   printf "${ORANGE}*****************************\n${NC}"
   printf "${ORANGE}*** Meson Compile ${srcdir} ***\n${NC}"
   printf "${ORANGE}*****************************\n${NC}"
-  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-  # PATH="$PATH" \
-  # LIBRARY_PATH="$LIBRARY_PATH" \
-  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-    meson compile -C $build_dir
+  meson compile -C $build_dir
   status=$?
   if [ $status -ne 0 ]; then
       printf "${RED}*****************************\n${NC}"
@@ -607,13 +523,7 @@ buildMesonProject() {
   printf "${ORANGE}*****************************\n${NC}"
   printf "${ORANGE}*** Meson Install ${srcdir} ***\n${NC}"
   printf "${ORANGE}*****************************\n${NC}"
-  # C_INCLUDE_PATH="$C_INCLUDE_PATH" \
-  # CPLUS_INCLUDE_PATH="$CPLUS_INCLUDE_PATH" \
-  # PATH="$PATH" \
-  # LIBRARY_PATH="$LIBRARY_PATH" \
-  # LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-  # PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-    DESTDIR=${destdir} meson install -C $build_dir
+  DESTDIR=${destdir} meson install -C $build_dir
   status=$?
   if [ $status -ne 0 ]; then
       printf "${RED}*****************************\n${NC}"
@@ -706,23 +616,6 @@ cd $SUBPROJECT_DIR
 
 ################################################################
 # 
-#    Build gettext and libgettext dependency
-#   sudo apt install gettext libgettext-dev (tested 1.16.3)
-# 
-################################################################
-PATH=$PATH:$SUBPROJECT_DIR/gettext-0.21.1/dist/bin
-if [ -z "$(checkProg name='gettextize' args='--version' path=$PATH)" ]; then
-  echo "not found gettext"
-  downloadAndExtract file="gettext-0.21.1.tar.gz" path="https://ftp.gnu.org/pub/gnu/gettext/gettext-0.21.1.tar.gz"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-  buildMakeProject srcdir="gettext-0.21.1" prefix="$SUBPROJECT_DIR/gettext-0.21.1/dist" autogen="skip"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-else
-  echo "gettext already found."
-fi
-
-################################################################
-# 
 #    Build v4l2-utils dependency
 #   sudo apt install libv4l-dev (tested 1.16.3)
 # 
@@ -738,211 +631,6 @@ if [ $ret != 0 ]; then
   if [ $FAILED -eq 1 ]; then exit 1; fi
 else
   echo "libv4l2 already found."
-fi
-
-
-################################################################
-# 
-#     Build glib dependency
-#   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.64.0)
-# 
-################################################################
-PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
-pkg-config --exists --print-errors "glib-2.0 >= 2.64.0"
-ret=$?
-if [ $ret != 0 ]; then 
-  echo "not found glib-2.0"
-  downloadAndExtract file="glib-2.74.1.tar.xz" path="https://download.gnome.org/sources/glib/2.74/glib-2.74.1.tar.xz"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-  buildMesonProject srcdir="glib-2.74.1" prefix="$SUBPROJECT_DIR/glib-2.74.1/dist" mesonargs="-Dpcre2:test=false -Dpcre2:grep=false -Dxattr=false -Db_lundef=false -Dtests=false -Dglib_debug=disabled -Dglib_assert=false -Dglib_checks=false"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-else
-  echo "glib already found."
-fi
-
-################################################################
-# 
-#    Build gudev-1.0 dependency
-#   sudo apt install libgudev-1.0-dev (tested 232)
-# 
-################################################################
-PKG_UDEV=$SUBPROJECT_DIR/systemd-252/dist/usr/local/lib/pkgconfig
-PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV:$PKG_GLIB \
-pkg-config --exists --print-errors "gudev-1.0 >= 232"
-ret=$?
-if [ $ret != 0 ]; then 
-  echo "not found gudev-1.0"
-  if [ -z "$(checkProg name='gperf' args='--version' path=$SUBPROJECT_DIR/gperf-3.1/dist/bin)" ]; then
-    echo "not found gperf"
-    downloadAndExtract file="gperf-3.1.tar.gz" path="http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-    buildMakeProject srcdir="gperf-3.1" prefix="$SUBPROJECT_DIR/gperf-3.1/dist" autogen="skip"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-  else
-    echo "gperf already found."
-  fi
-
-  PKG_LIBCAP=$SUBPROJECT_DIR/libcap/dist/lib64/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
-  pkg-config --exists --print-errors "libcap >= 2.53" # Or check for sys/capability.h
-  ret=$?
-  if [ $ret != 0 ]; then
-    echo "not found libcap"
-    pullOrClone path=git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git tag=libcap-2.53
-    buildMakeProject srcdir="libcap" prefix="$SUBPROJECT_DIR/libcap/dist" installargs="DESTDIR=$SUBPROJECT_DIR/libcap/dist"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-  else
-    echo "libcap already found."
-  fi
-
-  PKG_UTIL_LINUX=$SUBPROJECT_DIR/util-linux/dist/lib/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UTIL_LINUX \
-  pkg-config --exists --print-errors "mount >= 2.38.0"
-  ret=$?
-  if [ $ret != 0 ]; then
-    echo "not found mount"
-    pullOrClone path=https://github.com/util-linux/util-linux.git tag=v2.38.1
-    buildMakeProject srcdir="util-linux" prefix="$SUBPROJECT_DIR/util-linux/dist" configure="--disable-rpath --disable-bash-completion --disable-makeinstall-setuid --disable-makeinstall-chown"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-  else
-    echo "mount already found."
-  fi
-
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
-  pkg-config --exists --print-errors "libudev >= 252" # Or check for sys/capability.h
-  ret=$?
-  if [ $ret != 0 ]; then
-    echo "not found libudev"
-    SYSD_MESON_ARGS="-Dauto_features=disabled"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmode=developer"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-udev-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-systemctl-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-networkd-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-timesyncd-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-journalctl-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-boot-shared=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfirst-boot-full-preset=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libsystemd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libudev=true"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstandalone-binaries=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinitrd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcompat-mutable-uid-boundaries=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnscd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-shell=''"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-tty=''"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dutmp=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhibernate=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dldconfig=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dresolve=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Defi=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Denvironment-d=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbinfmt=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drepart=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysupdate=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcoredump=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpstore=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Doomd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlogind=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhostnamed=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlocaled=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmachined=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dportabled=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysext=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Duserdb=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhomed=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnetworkd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimedated=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimesyncd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dremote=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcreate-log-dirs=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-myhostname=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-mymachines=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-resolve=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-systemd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drandomseed=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbacklight=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dvconsole=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dquotacheck=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysusers=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtmpfiles=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dimportd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhwdb=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drfkill=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxdg-autostart=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dman=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhtml=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtranslations=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinstall-sysconfdir=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dseccomp=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dselinux=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dapparmor=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsmack=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpolkit=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dima=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dacl=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Daudit=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dblkid=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfdisk=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkmod=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpam=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpwquality=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmicrohttpd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcryptsetup=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcurl=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Didn=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn2=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibiptc=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dqrencode=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgcrypt=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnutls=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dopenssl=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcryptolib=auto"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dp11kit=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibfido2=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm2=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Delfutils=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzlib=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbzip2=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxz=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlz4=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzstd=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxkbcommon=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpcre2=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dglib=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddbus=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnu-efi=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtests=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Durlify=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Danalyze=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbpf-framework=false"
-    SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkernel-install=false"
-    downloadAndExtract file="v252.tar.gz" path="https://github.com/systemd/systemd/archive/refs/tags/v252.tar.gz"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-    PATH=$PATH:$SUBPROJECT_DIR/gperf-3.1/dist/bin \
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP:$PKG_UTIL_LINUX \
-    C_INCLUDE_PATH=$SUBPROJECT_DIR/libcap/dist/usr/include \
-    LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64 \
-    buildMesonProject srcdir="systemd-252" prefix="/usr/local" mesonargs="$SYSD_MESON_ARGS" destdir="$SUBPROJECT_DIR/systemd-252/dist"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-
-  else
-    echo "libudev already found."
-  fi
-
-  pullOrClone path=https://gitlab.gnome.org/GNOME/libgudev.git tag=237
-  C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-252/dist/usr/local/include \
-  LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
-  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV:$PKG_GLIB \
-  buildMesonProject srcdir="libgudev" prefix="$SUBPROJECT_DIR/libgudev/build/dist" mesonargs="-Dvapi=disabled -Dtests=disabled -Dintrospection=disabled"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-
-else
-  echo "gudev-1.0 already found."
 fi
 
 ################################################################
@@ -968,262 +656,551 @@ fi
 
 ################################################################
 # 
-#    Build libpulse dependency
-#   sudo apt install libpulse-dev (tested 12.2)
-# 
-################################################################
-PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
-pkg-config --exists --print-errors "libpulse >= 12.2"
-ret=$?
-if [ $ret != 0 ]; then 
-  echo "not found libpulse"
-
-  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
-  cmake --version
-  ret=$?
-  if [ $ret != 0 ]; then
-    echo "not found cmake"
-    python3 -m pip install cmake
-    status=$?
-  else
-    echo "cmake already found."
-  fi
-
-  if [ $status -ne 0 ]; then
-      printf "${RED}*****************************\n${NC}"
-      printf "${RED}*** Failed to install cmake from pip ${srcdir} ***\n${NC}"
-      printf "${RED}*****************************\n${NC}"
-      exit 1
-  fi
-
-  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
-  pkg-config --exists --print-errors "sndfile >= 1.2.0"
-  ret=$?
-  if [ $ret != 0 ]; then
-    echo "not found sndfile"
-    LIBSNDFILE_CMAKEARGS="-DBUILD_EXAMPLES=off"
-    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_TESTING=off"
-    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_SHARED_LIBS=on"
-    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_PKGCONFIG_MODULE=on"
-    LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_MANPAGES=off"
-    pullOrClone path="https://github.com/libsndfile/libsndfile.git" tag=1.2.0
-    mkdir "libsndfile/build"
-    buildMakeProject srcdir="libsndfile/build" prefix="$SUBPROJECT_DIR/libsndfile/dist" cmakedir=".." cmakeargs="$LIBSNDFILE_CMAKEARGS"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-  else
-    echo "sndfile already found."
-  fi
-
-
-  PULSE_MESON_ARGS="-Ddaemon=false"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddoxygen=false"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dman=false"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dtests=false"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddatabase=simple"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dbashcompletiondir=no"
-  PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dzshcompletiondir=no"
-  pullOrClone path="https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git" tag=v16.1
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
-  buildMesonProject srcdir="pulseaudio" prefix="$SUBPROJECT_DIR/pulseaudio/build/dist" mesonargs="$PULSE_MESON_ARGS"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-
-else
-  echo "libpulse already found."
-fi
-
-################################################################
-# 
-#    Build nasm dependency
-#   sudo apt install nasm
-# 
-################################################################
-NASM_BIN=$SUBPROJECT_DIR/nasm-2.15.05/dist/bin
-if [ -z "$(checkProg name='nasm' args='--version' path=$NASM_BIN)" ]; then
-  echo "not found nasm"
-  downloadAndExtract file=nasm-2.15.05.tar.bz2 path=https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/nasm-2.15.05.tar.bz2
-  buildMakeProject srcdir="nasm-2.15.05" prefix="$SUBPROJECT_DIR/nasm-2.15.05/dist"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-else
-    echo "nasm already installed."
-fi
-
-################################################################
-# 
 #    Build Gstreamer dependency
 # 
 ################################################################
-pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.90
-MESON_PARAMS=""
+PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
+GST_OMX_PKG_PATH=$SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/pkgconfig
+GST_LIBAV_PKG_PATH=$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/pkgconfig
+GST_PKG_PATH=:$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig
+ret1=0
+ret2=0
+ret3=0
+ret4=0
 
-# Force disable subproject features
-MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false"
-MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=false"
-MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
-
-# Gstreamer options
-MESON_PARAMS="$MESON_PARAMS -Dbase=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgood=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dbad=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgpl=enabled"
-MESON_PARAMS="$MESON_PARAMS -Drtsp_server=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:app=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:typefind=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audiotestsrc=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videotestsrc=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:playback=enabled"
-if [ $ENABLE_CLIENT -eq 1 ]; then
-  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:x11=enabled"
-  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:xvideo=enabled"
-fi
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:alsa=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videoconvertscale=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videorate=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:rawparse=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:pbtypes=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioresample=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioconvert=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:volume=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tcp=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:v4l2=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtsp=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtp=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtpmanager=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:law=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:autodetect=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:pulse=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:interleave=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:audioparsers=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:udp=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
-# MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
-
-#Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
-# This is to support v4l2h264enc element with capssetter
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
-
-# This is required for the snapshot feature
-MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
-
-MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
-MESON_PARAMS="--strip $MESON_PARAMS"
-
-# Add tinyalsa fallback subproject
-# echo "[wrap-git]" > subprojects/tinyalsa.wrap
-# echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
-# echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
-# echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
-# MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
-
-GST_PKG_PATH=:$SCRT_DIR/build/dist/lib/pkgconfig
-LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
-PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB  \
-buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build/dist" mesonargs="$MESON_PARAMS" builddir="build"
-if [ $FAILED -eq 1 ]; then exit 1; fi
-
-
-if [ $ENABLE_LIBAV -eq 1 ]; then
-  echo "LIBAV Feature enabled..."
-
-  FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
-  FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
-  pkg-config --exists --print-errors "libavcodec"
-  ret1=$?
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
-  pkg-config --exists --print-errors "libavfilter"
-  ret2=$?
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
-  pkg-config --exists --print-errors "libavformat"
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
+pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
+ret1=$?
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
+pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= 1.21.90"
+ret2=$?
+if [ $ENABLE_RPI -eq 1 ]; then
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
+  pkg-config --exists --print-errors "gstomx-1.0 >= 1.14.4"
   ret3=$?
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
-  pkg-config --exists --print-errors "libswresample"
+fi
+if [ $ENABLE_LIBAV -eq 1 ]; then
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB \
+  pkg-config --exists --print-errors "gstlibav-1.0 >= 1.14.4"
   ret4=$?
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
-  pkg-config --exists --print-errors "libswscale"
-  ret5=$?
-  if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ret5 != 0 ]; then
-    #######################
-    #
-    # Custom FFmpeg build
-    #   For some reason, Gstreamer's meson dep doesn't build any codecs
-    #
-    #######################
+fi
 
-    FFMPEG_CONFIGURE_ARGS="--disable-lzma"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-doc"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-shared"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-static"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-nonfree"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-version3"
-    FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-gpl"
+#Check to see if gstreamer exist on the system
+if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ENABLE_LATEST != 0 ]; then
 
-
-    pullOrClone path="https://github.com/FFmpeg/FFmpeg.git" tag=n5.0.2
-    PATH=$PATH:$NASM_BIN \
-    buildMakeProject srcdir="FFmpeg" prefix="$SUBPROJECT_DIR/FFmpeg/dist" configure="$FFMPEG_CONFIGURE_ARGS"
-    if [ $FAILED -eq 1 ]; then exit 1; fi
-    rm -rf $SUBPROJECT_DIR/FFmpeg/dist/lib/*.so
-  else
-      echo "FFmpeg already installed."
+  echo "ret1 : $ret1 | ret2 : $ret2 | ret3 : $ret3 | ret4 : $ret4"
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
+  pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
+  ret1=$?
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
+  pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= 1.21.90"
+  ret2=$?
+  if [ $ENABLE_RPI -eq 1 ]; then
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
+    pkg-config --exists --print-errors "gstrpicamsrc >= 1.21.90"
+    ret3=$?
+  fi
+  if [ $ENABLE_LIBAV -eq 1 ]; then
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB \
+    pkg-config --exists --print-errors "gstlibav-1.0 >= 1.21.90"
+    ret4=$?
   fi
 
-  MESON_PARAMS="-Dlibav=enabled"
-  MESON_PARAMS="$MESON_PARAMS --strip"
-  MESON_PARAMS="$MESON_PARAMS --wrap-mode=nofallback"
-  MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
-  MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+  echo "ret1 : $ret1 | ret2 : $ret2 | ret3 : $ret3 | ret4 : $ret4"
+  #Global check if gstreamer is already built
+  if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ]; then
+    ################################################################
+    # 
+    #    Build gettext and libgettext dependency
+    #   sudo apt install gettext libgettext-dev (tested 1.16.3)
+    # 
+    ################################################################
+    PATH=$PATH:$SUBPROJECT_DIR/gettext-0.21.1/dist/bin
+    if [ -z "$(checkProg name='gettextize' args='--version' path=$PATH)" ]; then
+      echo "not found gettext"
+      downloadAndExtract file="gettext-0.21.1.tar.gz" path="https://ftp.gnu.org/pub/gnu/gettext/gettext-0.21.1.tar.gz"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+      buildMakeProject srcdir="gettext-0.21.1" prefix="$SUBPROJECT_DIR/gettext-0.21.1/dist" autogen="skip"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+    else
+      echo "gettext already found."
+    fi
 
-  LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
-  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
-  buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/libav_build/dist" mesonargs="$MESON_PARAMS" builddir="libav_build"
-  if [ $FAILED -eq 1 ]; then exit 1; fi
+    ################################################################
+    # 
+    #     Build glib dependency
+    #   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.64.0)
+    # 
+    ################################################################
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
+    pkg-config --exists --print-errors "glib-2.0 >= 2.64.0"
+    ret=$?
+    if [ $ret != 0 ]; then 
+      echo "not found glib-2.0"
+      downloadAndExtract file="glib-2.74.1.tar.xz" path="https://download.gnome.org/sources/glib/2.74/glib-2.74.1.tar.xz"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+      buildMesonProject srcdir="glib-2.74.1" prefix="$SUBPROJECT_DIR/glib-2.74.1/dist" mesonargs="-Dpcre2:test=false -Dpcre2:grep=false -Dxattr=false -Db_lundef=false -Dtests=false -Dglib_debug=disabled -Dglib_assert=false -Dglib_checks=false"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+    else
+      echo "glib already found."
+    fi
 
-  #Remove shared lib to force static resolution to .a
-  rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/*.so
-  rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/*.so
+    ################################################################
+    # 
+    #    Build gudev-1.0 dependency
+    #   sudo apt install libgudev-1.0-dev (tested 232)
+    # 
+    ################################################################
+    PKG_UDEV=$SUBPROJECT_DIR/systemd-252/dist/usr/local/lib/pkgconfig
+    PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV:$PKG_GLIB \
+    pkg-config --exists --print-errors "gudev-1.0 >= 232"
+    ret=$?
+    if [ $ret != 0 ]; then 
+      echo "not found gudev-1.0"
+      if [ -z "$(checkProg name='gperf' args='--version' path=$SUBPROJECT_DIR/gperf-3.1/dist/bin)" ]; then
+        echo "not found gperf"
+        downloadAndExtract file="gperf-3.1.tar.gz" path="http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        buildMakeProject srcdir="gperf-3.1" prefix="$SUBPROJECT_DIR/gperf-3.1/dist" autogen="skip"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "gperf already found."
+      fi
+
+      PKG_LIBCAP=$SUBPROJECT_DIR/libcap/dist/lib64/pkgconfig
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
+      pkg-config --exists --print-errors "libcap >= 2.53" # Or check for sys/capability.h
+      ret=$?
+      if [ $ret != 0 ]; then
+        echo "not found libcap"
+        pullOrClone path=git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git tag=libcap-2.53
+        buildMakeProject srcdir="libcap" prefix="$SUBPROJECT_DIR/libcap/dist" installargs="DESTDIR=$SUBPROJECT_DIR/libcap/dist"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "libcap already found."
+      fi
+
+      PKG_UTIL_LINUX=$SUBPROJECT_DIR/util-linux/dist/lib/pkgconfig
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UTIL_LINUX \
+      pkg-config --exists --print-errors "mount >= 2.38.0"
+      ret=$?
+      if [ $ret != 0 ]; then
+        echo "not found mount"
+        pullOrClone path=https://github.com/util-linux/util-linux.git tag=v2.38.1
+        buildMakeProject srcdir="util-linux" prefix="$SUBPROJECT_DIR/util-linux/dist" configure="--disable-rpath --disable-bash-completion --disable-makeinstall-setuid --disable-makeinstall-chown"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "mount already found."
+      fi
+
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
+      pkg-config --exists --print-errors "libudev >= 252" # Or check for sys/capability.h
+      ret=$?
+      if [ $ret != 0 ]; then
+        echo "not found libudev"
+        SYSD_MESON_ARGS="-Dauto_features=disabled"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmode=developer"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-udev-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-systemctl-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-networkd-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-timesyncd-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-journalctl-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlink-boot-shared=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfirst-boot-full-preset=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libsystemd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstatic-libudev=true"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dstandalone-binaries=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinitrd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcompat-mutable-uid-boundaries=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnscd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-shell=''"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddebug-tty=''"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dutmp=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhibernate=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dldconfig=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dresolve=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Defi=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Denvironment-d=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbinfmt=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drepart=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysupdate=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcoredump=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpstore=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Doomd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlogind=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhostnamed=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlocaled=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmachined=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dportabled=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysext=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Duserdb=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhomed=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnetworkd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimedated=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtimesyncd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dremote=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcreate-log-dirs=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-myhostname=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-mymachines=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-resolve=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dnss-systemd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drandomseed=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbacklight=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dvconsole=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dquotacheck=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysusers=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtmpfiles=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dimportd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhwdb=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Drfkill=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxdg-autostart=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dman=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dhtml=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtranslations=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dinstall-sysconfdir=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dseccomp=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dselinux=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dapparmor=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsmack=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpolkit=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dima=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dacl=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Daudit=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dblkid=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dfdisk=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkmod=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpam=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpwquality=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dmicrohttpd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcryptsetup=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibcurl=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Didn=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn2=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibidn=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibiptc=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dqrencode=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgcrypt=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnutls=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dopenssl=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcryptolib=auto"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dp11kit=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlibfido2=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtpm2=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Delfutils=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzlib=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbzip2=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxz=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlz4=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dzstd=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dxkbcommon=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpcre2=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dglib=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddbus=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnu-efi=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtests=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Durlify=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Danalyze=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbpf-framework=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkernel-install=false"
+        downloadAndExtract file="v252.tar.gz" path="https://github.com/systemd/systemd/archive/refs/tags/v252.tar.gz"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        PATH=$PATH:$SUBPROJECT_DIR/gperf-3.1/dist/bin \
+        PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP:$PKG_UTIL_LINUX \
+        C_INCLUDE_PATH=$SUBPROJECT_DIR/libcap/dist/usr/include \
+        LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64 \
+        buildMesonProject srcdir="systemd-252" prefix="/usr/local" mesonargs="$SYSD_MESON_ARGS" destdir="$SUBPROJECT_DIR/systemd-252/dist"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+
+      else
+        echo "libudev already found."
+      fi
+
+      pullOrClone path=https://gitlab.gnome.org/GNOME/libgudev.git tag=237
+      C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-252/dist/usr/local/include \
+      LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+      PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin \
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV:$PKG_GLIB \
+      buildMesonProject srcdir="libgudev" prefix="$SUBPROJECT_DIR/libgudev/build/dist" mesonargs="-Dvapi=disabled -Dtests=disabled -Dintrospection=disabled"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+
+    else
+      echo "gudev-1.0 already found."
+    fi
+
+    ################################################################
+    # 
+    #    Build libpulse dependency
+    #   sudo apt install libpulse-dev (tested 12.2)
+    # 
+    ################################################################
+    PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
+    pkg-config --exists --print-errors "libpulse >= 12.2"
+    ret=$?
+    if [ $ret != 0 ]; then 
+      echo "not found libpulse"
+
+      PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+      cmake --version
+      ret=$?
+      if [ $ret != 0 ]; then
+        echo "not found cmake"
+        python3 -m pip install cmake
+        status=$?
+        if [ $status -ne 0 ]; then
+            printf "${RED}*****************************\n${NC}"
+            printf "${RED}*** Failed to install cmake from pip ${srcdir} ***\n${NC}"
+            printf "${RED}*****************************\n${NC}"
+            exit 1
+        fi
+      else
+        echo "cmake already found."
+      fi
+
+      PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+      pkg-config --exists --print-errors "sndfile >= 1.2.0"
+      ret=$?
+      if [ $ret != 0 ]; then
+        echo "not found sndfile"
+        LIBSNDFILE_CMAKEARGS="-DBUILD_EXAMPLES=off"
+        LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_TESTING=off"
+        LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DBUILD_SHARED_LIBS=on"
+        LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_PKGCONFIG_MODULE=on"
+        LIBSNDFILE_CMAKEARGS="$LIBSNDFILE_CMAKEARGS -DINSTALL_MANPAGES=off"
+        pullOrClone path="https://github.com/libsndfile/libsndfile.git" tag=1.2.0
+        mkdir "libsndfile/build"
+        buildMakeProject srcdir="libsndfile/build" prefix="$SUBPROJECT_DIR/libsndfile/dist" cmakedir=".." cmakeargs="$LIBSNDFILE_CMAKEARGS"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "sndfile already found."
+      fi
+
+
+      PULSE_MESON_ARGS="-Ddaemon=false"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddoxygen=false"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dman=false"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dtests=false"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Ddatabase=simple"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dbashcompletiondir=no"
+      PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dzshcompletiondir=no"
+      pullOrClone path="https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git" tag=v16.1
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
+      buildMesonProject srcdir="pulseaudio" prefix="$SUBPROJECT_DIR/pulseaudio/build/dist" mesonargs="$PULSE_MESON_ARGS"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+
+    else
+      echo "libpulse already found."
+    fi
+
+    ################################################################
+    # 
+    #    Build nasm dependency
+    #   sudo apt install nasm
+    # 
+    ################################################################
+    NASM_BIN=$SUBPROJECT_DIR/nasm-2.15.05/dist/bin
+    if [ -z "$(checkProg name='nasm' args='--version' path=$NASM_BIN)" ]; then
+      echo "not found nasm"
+      downloadAndExtract file=nasm-2.15.05.tar.bz2 path=https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/nasm-2.15.05.tar.bz2
+      buildMakeProject srcdir="nasm-2.15.05" prefix="$SUBPROJECT_DIR/nasm-2.15.05/dist"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+    else
+        echo "nasm already installed."
+    fi
+
+    if [ $ret1 != 0 ] || [ $ret2 != 0 ]; then
+      pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.90
+      MESON_PARAMS=""
+
+      # Force disable subproject features
+      MESON_PARAMS="$MESON_PARAMS -Dglib:tests=false"
+      MESON_PARAMS="$MESON_PARAMS -Dlibdrm:cairo-tests=false"
+      MESON_PARAMS="$MESON_PARAMS -Dx264:cli=false"
+
+      # Gstreamer options
+      MESON_PARAMS="$MESON_PARAMS -Dbase=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgood=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dbad=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgpl=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Drtsp_server=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:app=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:typefind=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audiotestsrc=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videotestsrc=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:playback=enabled"
+      if [ $ENABLE_CLIENT -eq 1 ]; then
+        MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:x11=enabled"
+        MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:xvideo=enabled"
+      fi
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:alsa=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videoconvertscale=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:videorate=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:rawparse=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:pbtypes=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioresample=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:audioconvert=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:volume=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-base:tcp=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:v4l2=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtsp=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtp=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rtpmanager=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:law=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:autodetect=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:pulse=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:interleave=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:audioparsers=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:udp=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
+      # MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
+      # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
+
+      #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
+      # This is to support v4l2h264enc element with capssetter
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:debugutils=enabled"
+
+      # This is required for the snapshot feature
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:png=enabled"
+
+      MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+      MESON_PARAMS="--strip $MESON_PARAMS"
+
+      # Add tinyalsa fallback subproject
+      # echo "[wrap-git]" > subprojects/tinyalsa.wrap
+      # echo "directory=tinyalsa" >> subprojects/tinyalsa.wrap
+      # echo "url=https://github.com/tinyalsa/tinyalsa.git" >> subprojects/tinyalsa.wrap
+      # echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
+      # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
+
+      LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+      PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB  \
+      buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build/dist" mesonargs="$MESON_PARAMS" builddir="build"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+    else
+      echo "Core latest gstreamer already built"
+    fi
+
+    if [ $ENABLE_LIBAV -eq 1 ] && [ $ret4 != 0 ]; then
+      echo "LIBAV Feature enabled..."
+
+      FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
+      FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libavcodec >= 58.20.100"
+      ret1=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libavfilter >= 7.40.101"
+      ret2=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libavformat >= 58.20.100"
+      ret3=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libavutil >= 56.22.100"
+      ret4=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libpostproc >= 55.3.100"
+      ret5=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libswresample >= 3.3.100"
+      ret6=$?
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
+      pkg-config --exists --print-errors "libswscale >= 5.3.100"
+      ret7=$?
+      if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ret5 != 0 ] || [ $ret6 != 0 ] || [ $ret7 != 0 ]; then
+        #######################
+        #
+        # Custom FFmpeg build
+        #   For some reason, Gstreamer's meson dep doesn't build any codecs
+        #   
+        #   sudo apt install libavcodec-dev libavfilter-dev libavformat-dev libswresample-dev
+        #######################
+
+        FFMPEG_CONFIGURE_ARGS="--disable-lzma"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-doc"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --disable-shared"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-static"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-nonfree"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-version3"
+        FFMPEG_CONFIGURE_ARGS="$FFMPEG_CONFIGURE_ARGS --enable-gpl"
+
+
+        pullOrClone path="https://github.com/FFmpeg/FFmpeg.git" tag=n5.0.2
+        PATH=$PATH:$NASM_BIN \
+        buildMakeProject srcdir="FFmpeg" prefix="$SUBPROJECT_DIR/FFmpeg/dist" configure="$FFMPEG_CONFIGURE_ARGS"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        rm -rf $SUBPROJECT_DIR/FFmpeg/dist/lib/*.so
+      else
+          echo "FFmpeg already installed."
+      fi
+
+      MESON_PARAMS="-Dlibav=enabled"
+      MESON_PARAMS="$MESON_PARAMS --strip"
+      MESON_PARAMS="$MESON_PARAMS --wrap-mode=nofallback"
+      MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
+      MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+
+      LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+      LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+      PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+      buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/libav_build/dist" mesonargs="$MESON_PARAMS" builddir="libav_build"
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+
+      #Remove shared lib to force static resolution to .a
+      rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/*.so
+      rm -rf $SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/*.so
+    else
+        echo "Gstreamer libav already installed/built."
+    fi
+
+    if [ $ENABLE_RPI -eq 1 ] && [ $ret3 != 0 ]; then
+      echo "Legacy RPi OMX Feature enabled..."
+      # OMX is build sperately, because it depends on a build variable defined in the shared build.
+      #   So we build both to get the static ones.
+      MESON_PARAMS="--strip"
+      MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
+      MESON_PARAMS="$MESON_PARAMS -Domx=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-omx:header_path=/opt/vc/include/IL"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-omx:target=rpi"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rpicamsrc=enabled"
+      MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
+      
+      LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+      LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
+      PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
+      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+      buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build_omx/dist" mesonargs="$MESON_PARAMS" builddir="build_omx" defaultlib=both
+      if [ $FAILED -eq 1 ]; then exit 1; fi
+
+      #Remove shared lib to force static resolution to .a
+      rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/*.so
+      rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/*.so
+    else
+        echo "Gstreamer omx already installed/built."
+    fi
+
+    #Remove shared lib to force static resolution to .a
+    #We used the shared libs to recompile gst-omx plugins
+    rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/*.so
+    rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/*.so
+
+  else
+      echo "Latest Gstreamer already installed/built."
+  fi
+else
+    echo "Gstreamer already installed."
 fi
-
-if [ $ENABLE_RPI -eq 1 ]; then
-  echo "Legacy RPi OMX Feature enabled..."
-  # OMX is build sperately, because it depends on a build variable defined in the shared build.
-  #   So we build both to get the static ones.
-  MESON_PARAMS="--strip"
-  MESON_PARAMS="$MESON_PARAMS -Dauto_features=disabled"
-  MESON_PARAMS="$MESON_PARAMS -Domx=enabled"
-  MESON_PARAMS="$MESON_PARAMS -Dgst-omx:header_path=/opt/vc/include/IL"
-  MESON_PARAMS="$MESON_PARAMS -Dgst-omx:target=rpi"
-  MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:rpicamsrc=enabled"
-  MESON_PARAMS="-Dauto_features=disabled $MESON_PARAMS"
-  
-  LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
-  LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
-  PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
-  buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build_omx/dist" mesonargs="$MESON_PARAMS" builddir="build_omx" defaultlib=both
-  if [ $FAILED -eq 1 ]; then exit 1; fi
-
-  #Remove shared lib to force static resolution to .a
-  rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/*.so
-  rm -rf $SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/*.so
-fi
-
-#Remove shared lib to force static resolution to .a
-#We used the shared libs to recompile gst-omx plugins
-rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/*.so
-rm -rf $SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/*.so
 
 ################################################################
 # 

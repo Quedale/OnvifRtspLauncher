@@ -186,7 +186,9 @@ main (int argc, char *argv[])
 
     gst_init (&argc, &argv);
 
+#ifdef STATIC_BUILD
     onvif_init_static_plugins();
+#endif
 
     GST_DEBUG_CATEGORY_INIT (ext_onvif_server_debug, "ext-onvif-server", 0, "Extended ONVIF server");
     gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);

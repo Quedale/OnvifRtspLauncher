@@ -48,8 +48,8 @@ message_handler (GstBus * bus, GstMessage * message, gpointer p)
     VideoRetValue *ret = (VideoRetValue *) p;
     switch(message->type){
         case GST_MESSAGE_ANY:
-        case GST_MESSAGE_INSTANT_RATE_REQUEST:
-        case GST_MESSAGE_DEVICE_CHANGED:
+        // case GST_MESSAGE_INSTANT_RATE_REQUEST: //Doesnt exists in 1.14.4
+        // case GST_MESSAGE_DEVICE_CHANGED: //Doesnt exists in 1.14.4
         case GST_MESSAGE_REDIRECT:
         case GST_MESSAGE_STREAMS_SELECTED:
         case GST_MESSAGE_STREAM_COLLECTION:
