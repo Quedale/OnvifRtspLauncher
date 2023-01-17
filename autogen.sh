@@ -659,14 +659,16 @@ fi
 #    Build Gstreamer dependency
 # 
 ################################################################
+FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
 PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
 GST_OMX_PKG_PATH=$SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/pkgconfig
-GST_LIBAV_PKG_PATH=$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/pkgconfig
-GST_PKG_PATH=:$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig
+GST_LIBAV_PKG_PATH=$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/pkgconfig
+GST_PKG_PATH=:$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig
 ret1=0
 ret2=0
 ret3=0
 ret4=0
+ret5=0
 
 PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
 pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
@@ -676,19 +678,18 @@ pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= 1.21.90"
 ret2=$?
 if [ $ENABLE_RPI -eq 1 ]; then
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
-  pkg-config --exists --print-errors "gstomx-1.0 >= 1.14.4"
+  pkg-config --exists --print-errors "gstrpicamsrc >= 1.14.4"
   ret3=$?
 fi
 if [ $ENABLE_LIBAV -eq 1 ]; then
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB \
-  pkg-config --exists --print-errors "gstlibav-1.0 >= 1.14.4"
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB:$FFMPEG_PKG \
+  pkg-config --exists --print-errors "gstlibav >= 1.14.4"
   ret4=$?
 fi
 
 #Check to see if gstreamer exist on the system
 if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ENABLE_LATEST != 0 ]; then
 
-  echo "ret1 : $ret1 | ret2 : $ret2 | ret3 : $ret3 | ret4 : $ret4"
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
   pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
   ret1=$?
@@ -701,14 +702,19 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     ret3=$?
   fi
   if [ $ENABLE_LIBAV -eq 1 ]; then
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB \
-    pkg-config --exists --print-errors "gstlibav-1.0 >= 1.21.90"
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB:$FFMPEG_PKG \
+    pkg-config --exists --print-errors "gstlibav >= 1.21.90"
     ret4=$?
   fi
+  #Check if the feature was previously built
+  if [ $ENABLE_CLIENT -eq 1 ]; then
+    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
+    pkg-config --exists --print-errors "gstximagesink >= 1.21.90"
+    ret5=$?
+  fi
 
-  echo "ret1 : $ret1 | ret2 : $ret2 | ret3 : $ret3 | ret4 : $ret4"
   #Global check if gstreamer is already built
-  if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ]; then
+  if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ret5 != 0 ]; then
     ################################################################
     # 
     #    Build gettext and libgettext dependency
@@ -1013,7 +1019,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "nasm already installed."
     fi
 
-    if [ $ret1 != 0 ] || [ $ret2 != 0 ]; then
+    if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret5 != 0 ]; then
       pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.90
       MESON_PARAMS=""
 
@@ -1094,7 +1100,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     if [ $ENABLE_LIBAV -eq 1 ] && [ $ret4 != 0 ]; then
       echo "LIBAV Feature enabled..."
 
-      FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
       FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
       PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libavcodec >= 58.20.100"
