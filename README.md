@@ -17,10 +17,10 @@ The goal of this utility is to have an pluggable process that can be launched fr
 9. Snapshots capabilities (To support ONVIF Snapshot command)
 
 # WIP/TODO
-1. RPi multi-stream support.
+1. Multi-stream support.
+ - backchannel stream doesn't support shared media causing a v4l2 resource busy error
+ - Solution might be to use a shared pipeline and dynamically adding pads to a "tee" element.  This solution also brings advantages like running a single encoding task for multiple streams.
 2. RockPro64 hardware support (rkmpp)
-3. autogen.sh error handling
-4. H264 Capture input support. (e.g. Picam)
 
 # Usage
 ```
