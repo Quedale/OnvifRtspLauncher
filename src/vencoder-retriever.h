@@ -1,4 +1,4 @@
 
 
 char * 
-retrieve_videoencoder (void);
+retrieve_videoencoder (char * codec);

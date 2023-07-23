@@ -21,9 +21,9 @@ ENABLE_LATEST=0
 i=1;
 for arg in "$@"
 do
-  if [ "$arg" == "--enable-libav" ]; then
+  if [ "$arg" == "--enable-libav=yes" ] || [ "$arg" == "--enable-libav=true" ]; then
     ENABLE_LIBAV=1
-  elif [ "$arg" == "--enable-rpi" ]; then
+  elif [ "$arg" == "--enable-rpi=yes" ] || [ "$arg" == "--enable-rpi=true" ]; then
     ENABLE_RPI=1
   elif [ "$arg" == "--enable-client" ]; then
     ENABLE_CLIENT=1
@@ -563,17 +563,54 @@ checkProg () {
   fi
 }
 
+isMesonInstalled(){
+  local major minor micro # reset first
+  local "${@}"
+
+  ret=0
+  MESONVERSION=$(meson --version)
+  ret=$?
+  if [[ $status -eq 0 ]]; then
+    IFS='.' read -ra ADDR <<< "$MESONVERSION"
+    index=0
+    success=0
+    for i in "${ADDR[@]}"; do
+      if [ "$index" == "0" ]; then
+        valuetocomapre="${major}" #Major version
+      elif [ "$index" == "1" ]; then
+        valuetocomapre="${minor}" #Minor version
+      elif [ "$index" == "2" ]; then
+        valuetocomapre="${micro}" #Micro version
+      fi
+      
+      if [ "$i" -gt "$valuetocomapre" ]; then
+        success=1
+        break
+      elif [ "$i" -lt "$valuetocomapre" ]; then
+        success=0
+        break
+      fi
+
+      if [ "$index" == "2" ]; then
+        success=1
+      fi
+      ((index=index+1))
+    done
+
+    if [ $success -eq "1" ]; then
+      return
+    else
+      echo "nope"
+    fi
+
+  else
+    echo "nope"
+  fi
+}
+
+
 # Hard dependency check
 MISSING_DEP=0
-if [ -z "$(checkProg name='meson' args='--version' path=$PATH)" ]; then
-  MISSING_DEP=1
-  echo "meson build utility not found! Aborting..."
-fi
-
-if [ -z "$(checkProg name='ninja' args='--version' path=$PATH)" ]; then
-  MISSING_DEP=1
-  echo "ninja build utility not found! Aborting..."
-fi
 
 if [ -z "$(checkProg name='automake' args='--version' path=$PATH)" ]; then
   MISSING_DEP=1
@@ -613,6 +650,34 @@ mkdir -p $SUBPROJECT_DIR
 mkdir -p $SRC_CACHE_DIR
 
 cd $SUBPROJECT_DIR
+
+#Download virtualenv tool
+if [ ! -f "virtualenv.pyz" ]; then
+  wget https://bootstrap.pypa.io/virtualenv.pyz
+fi
+
+#Setting up Virtual Python environment
+if [ ! -f "./venvfolder/bin/activate" ]; then
+  python3 virtualenv.pyz ./venvfolder
+fi
+
+#Activate virtual environment
+source venvfolder/bin/activate
+
+#Setup meson
+if [ ! -z "$(isMesonInstalled major=0 minor=63 micro=2)" ]; then
+  echo "ninja build utility not found. Installing from pip..."
+  python3 -m pip install meson --upgrade
+else
+  echo "Meson $(meson --version) already installed."
+fi
+
+if [ -z "$(checkProg name='ninja' args='--version' path=$PATH)" ]; then
+  echo "ninja build utility not found. Installing from pip..."
+  python3 -m pip install ninja --upgrade
+else
+  echo "Ninja $(ninja --version) already installed."
+fi
 
 ################################################################
 # 
@@ -669,20 +734,17 @@ ret2=0
 ret3=0
 ret4=0
 ret5=0
+gst_version=1.22.4
 
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
 pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
 ret1=$?
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
 pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= 1.21.90"
 ret2=$?
 if [ $ENABLE_RPI -eq 1 ]; then
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
   pkg-config --exists --print-errors "gstrpicamsrc >= 1.14.4"
   ret3=$?
 fi
 if [ $ENABLE_LIBAV -eq 1 ]; then
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB:$FFMPEG_PKG \
   pkg-config --exists --print-errors "gstlibav >= 1.14.4"
   ret4=$?
 fi
@@ -691,25 +753,25 @@ fi
 if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ENABLE_LATEST != 0 ]; then
 
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
-  pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
+  pkg-config --exists --print-errors "gstreamer-1.0 >= $gst_version"
   ret1=$?
   PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
-  pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= 1.21.90"
+  pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= $gst_version"
   ret2=$?
   if [ $ENABLE_RPI -eq 1 ]; then
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
-    pkg-config --exists --print-errors "gstrpicamsrc >= 1.21.90"
+    pkg-config --exists --print-errors "gstrpicamsrc >= $gst_version"
     ret3=$?
   fi
   if [ $ENABLE_LIBAV -eq 1 ]; then
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB:$FFMPEG_PKG \
-    pkg-config --exists --print-errors "gstlibav >= 1.21.90"
+    pkg-config --exists  --print-errors "gstlibav >= $gst_version"
     ret4=$?
   fi
   #Check if the feature was previously built
   if [ $ENABLE_CLIENT -eq 1 ]; then
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
-    pkg-config --exists --print-errors "gstximagesink >= 1.21.90"
+    pkg-config --exists --print-errors "gstximagesink >= $gst_version"
     ret5=$?
   fi
 
@@ -1019,8 +1081,9 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "nasm already installed."
     fi
 
+    #Core Gstreamer
     if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret5 != 0 ]; then
-      pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=1.21.90
+      pullOrClone path="https://gitlab.freedesktop.org/gstreamer/gstreamer.git" tag=$gst_version
       MESON_PARAMS=""
 
       # Force disable subproject features
@@ -1062,14 +1125,17 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:interleave=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:audioparsers=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:udp=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-good:jpeg=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:openh264=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:nvcodec=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:v4l2codecs=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:fdkaac=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:jpegformat=enabled"
       # MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
       # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:x265=enabled"
 
       #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
       # This is to support v4l2h264enc element with capssetter

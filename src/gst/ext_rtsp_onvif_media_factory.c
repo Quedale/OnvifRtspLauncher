@@ -23,14 +23,18 @@ struct ExtRTSPOnvifMediaFactoryPrivate
     //Audio capture parameters
     gchar * microphone_device;
     gchar * microphone_element;
+
+    ExtRTSPOnvifMediaCodec codec;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (ExtRTSPOnvifMediaFactory, ext_rtsp_onvif_media_factory, GST_TYPE_RTSP_ONVIF_MEDIA_FACTORY);
 
 int is_suported_output_format(SupportedPixelFormats format){
     switch(format){
-        case V4L2_FMT_H264: return TRUE;
-        case V4L2_FMT_MJPEG: //TODO Support mjpeg
+        case V4L2_FMT_HEVC:
+        case V4L2_FMT_H264:
+        case V4L2_FMT_MJPEG:
+            return TRUE;
         default: return FALSE;
     }
 }
@@ -38,9 +42,10 @@ int is_suported_output_format(SupportedPixelFormats format){
 int is_suported_capture_format(int format){
     switch(format){
         case V4L2_FMT_H264:
+        case V4L2_FMT_HEVC:
         case V4L2_FMT_YUYV:
+        case V4L2_FMT_MJPEG:
             return TRUE;
-        case V4L2_FMT_MJPEG: //TODO support mjpeg stream
         default:
             GST_ERROR("Unsupported pixel format : %d",format);
             return FALSE;
@@ -111,6 +116,31 @@ ext_rtsp_onvif_media_factory_set_microphone_device (ExtRTSPOnvifMediaFactory *
     g_mutex_unlock (&factory->priv->lock);
 }
 
+void
+ext_rtsp_onvif_media_factory_set_codec (ExtRTSPOnvifMediaFactory *
+    factory, ExtRTSPOnvifMediaCodec codec)
+{
+    g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
+    GST_LOG("'%i'",codec);
+
+    g_mutex_lock (&factory->priv->lock);
+    factory->priv->codec = codec;
+    g_mutex_unlock (&factory->priv->lock);
+}
+
+int
+ext_rtsp_onvif_media_factory_get_codec (ExtRTSPOnvifMediaFactory *
+    factory)
+{
+    g_return_val_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory),-1);
+    int ret;
+    g_mutex_lock (&factory->priv->lock);
+    ret = factory->priv->codec;
+    g_mutex_unlock (&factory->priv->lock);
+    return ret;
+}
+
+
 void 
 ext_rtsp_onvif_media_factory_set_microphone_element (ExtRTSPOnvifMediaFactory * factory, const gchar * element){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
@@ -169,7 +199,7 @@ ext_rtsp_onvif_media_factory_init (ExtRTSPOnvifMediaFactory * factory)
     ext_rtsp_onvif_media_factory_set_width(factory,640);
     ext_rtsp_onvif_media_factory_set_height(factory,480);
     ext_rtsp_onvif_media_factory_set_fps(factory,10);
-
+    ext_rtsp_onvif_media_factory_set_codec(factory,EXT_RTSP_CODEC_H264);
     g_mutex_init (&factory->priv->lock);
 }
 
@@ -260,14 +290,24 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
             g_printerr ("One of the v4l2h264enc elements wasn't created... Exiting\n");
             return NULL;
         }
-
+        
+        // GstCaps *venc_filtercaps;
+        // switch(factory->priv->codec){
+        //     case EXT_RTSP_CODEC_H265:
+        //         venc_filtercaps = gst_caps_from_string("video/x-h265");
+        //         break;
+        //     case EXT_RTSP_CODEC_H264:
+        //         venc_filtercaps = gst_caps_new_simple ("video/x-h264",
+        //             "profile", G_TYPE_STRING, "high",
+        //             "level", G_TYPE_STRING, "4",
+        //             NULL);
+        //         break;
+        //     default:
+        //         break;
+        // }
         //Setting caps on source and encoder
         //TODO Set profile and level based on probed compatible settings
-        GstCaps *venc_filtercaps = gst_caps_new_simple ("video/x-h264",
-            "profile", G_TYPE_STRING, "high",
-            "level", G_TYPE_STRING, "4",
-            NULL);
-        g_object_set(G_OBJECT(venc_capsfilter), "caps", venc_filtercaps,NULL);
+        // g_object_set(G_OBJECT(venc_capsfilter), "caps", venc_filtercaps,NULL);
 
         //v4l2h264enc specific
         if(!strcmp(factory->priv->video_encoder,"v4l2h264enc")){
@@ -402,7 +442,15 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
                 "height", G_TYPE_INT, dev_height,
                 NULL);
             break;
-        case V4L2_FMT_MJPEG: //TODO support mjpeg stream
+        case V4L2_FMT_MJPEG: 
+            GST_DEBUG("Setting MJPEG Capture Caps");
+            src_filtercaps = gst_caps_new_simple ("image/jpeg",
+                "mpegversion", G_TYPE_INT, 4, //Can be 2...
+                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
+                "width", G_TYPE_INT, dev_width,
+                "height", G_TYPE_INT, dev_height,
+                NULL);
+            break;
         default:
             strncpy(fourcc, (char *)&dev_pixelformat, 4);
             GST_ERROR("Unsupported pixel format : [%s] %d",fourcc, dev_pixelformat);
@@ -497,9 +545,24 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
         GST_WARNING("Using native video stream!!!");
     }
 
+    GstElement * hparse, *hpay;
+
     //Create rtp payload sink
-    GstElement * hparse = gst_element_factory_make ("h264parse", "h264parse");
-    GstElement * hpay = gst_element_factory_make ("rtph264pay", "pay0");
+    switch(factory->priv->codec){
+        case EXT_RTSP_CODEC_H265:
+            hparse = gst_element_factory_make ("h265parse", "h265parse");
+            hpay = gst_element_factory_make ("rtph265pay", "pay0");
+            break;
+        case EXT_RTSP_CODEC_MJPEG:
+            hparse = gst_element_factory_make ("jpegparse", "jpegparse");
+            hpay = gst_element_factory_make ("rtpjpegpay", "pay0");
+            break;
+        case EXT_RTSP_CODEC_H264:
+        default:
+            hparse = gst_element_factory_make ("h264parse", "h264parse");
+            hpay = gst_element_factory_make ("rtph264pay", "pay0");
+            break;
+    }
 
     g_object_set(G_OBJECT(hpay), "pt", 96,NULL);
 
@@ -558,6 +621,20 @@ priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory *
 
     }
 
+    // //This is important in case the sink can't keep up to alsa or pulse push events
+    // GstElement * audio_queue = gst_element_factory_make ("queue", "audio_queue");
+    // if (!audio_queue) {
+    //     g_printerr ("The audio queue element wasn't created... Exiting\n");
+    //     return NULL;
+    // }
+    // gst_bin_add_many (GST_BIN (ret), audio_queue, NULL);
+    // //Linking audio elements
+    // if (!gst_element_link_many (last_element, audio_queue, NULL)){
+    //     GST_ERROR ("Linking audio queue part (A)-2 Fail...");
+    //     return NULL;
+    // }
+    // last_element  = audio_queue;
+
     //TODO support ONVIF input config for audio format/channels/rate
     GstElement * audio_enc = gst_element_factory_make ("mulawenc", "audio_enc");
     GstElement * audio_out_capsfilter = gst_element_factory_make ("capsfilter", "audio_out_caps");
@@ -596,7 +673,20 @@ priv_ext_rtsp_onvif_media_factory_create_element (ExtRTSPOnvifMediaFactory * fac
     desires.desired_fps = factory->priv->fps;
     desires.desired_width = factory->priv->width;
     desires.desired_height = factory->priv->height;
-    desires.desired_pixelformat = V4L2_PIX_FMT_H264;
+    switch(factory->priv->codec){
+        case EXT_RTSP_CODEC_H265:
+            desires.desired_pixelformat = V4L2_PIX_FMT_HEVC;
+            break;
+        case EXT_RTSP_CODEC_MJPEG:
+            desires.desired_pixelformat = V4L2_PIX_FMT_MJPEG;
+            break;
+        case EXT_RTSP_CODEC_H264:
+            desires.desired_pixelformat = V4L2_PIX_FMT_H264;
+            break;
+        default:
+            break;
+    }
+
     //Force configure v4l2 if it wasn't done already
     if(strcmp(factory->priv->video_device,"test") && factory->priv->v4l2params == NULL){
         v4l2ParameterResults * ret_val = configure_v4l2_device(factory->priv->video_device, desires, BAD_MATCH);

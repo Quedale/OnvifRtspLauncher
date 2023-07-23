@@ -34,6 +34,7 @@
 #include "vencoder-retriever.h"
 #include "gst/ext_rtsp_onvif_media_factory.h"
 #include "v4l/v4l2-device.h"
+#include "onvif-server-snapshot.h"
 
 GST_DEBUG_CATEGORY_STATIC (ext_onvif_server_debug);
 #define GST_CAT_DEFAULT (ext_onvif_server_debug)
@@ -54,6 +55,7 @@ static struct argp_option options[] = {
     { "port", 'p', "PORT", 0, "Network port to listen. (Default: 8554)"},
     { "snapshot", 's', "RTSPURL", 0, "Overrides all other input and takes a snapshot of the provided rtsp url."},
     { "output", 'o', "PNGFILE", 0, "Overrides all other input and set the snapshot output. (Default: output.png)"},
+    { "codec", 'c', "CODEC", 0, "Rtsp Output Codec used.(h264 or h265. Default h264)"},
     { 0 } 
 };
 
@@ -70,6 +72,7 @@ struct arguments {
     char *encoder;
     char *mount;
     int port;
+    char * codec;
 };
 
 //main arguments processing function
@@ -86,6 +89,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 'p': arguments->port = atoi(arg); break;
     case 's': arguments->snapshot = arg; break;
     case 'o': arguments->output = arg; break;
+    case 'c': arguments->codec = arg; break;
     case ARGP_KEY_ARG: return 0;
     default: return ARGP_ERR_UNKNOWN;
     }   
@@ -124,57 +128,6 @@ char* itoa(int value, char* result, int base) {
     return result;
 }
 
-
-void take_snapshot(char * rtsp_url, char * outputfile){
-    GstElement *pipeline, *rtspsrc, *appsink;
-    pipeline = gst_parse_launch ("rtspsrc name=r "
-        " ! queue ! decodebin ! videoconvert ! pngenc snapshot=true ! appsink sync=false max-buffers=2 drop=true name=sink emit-signals=true ", NULL);
-    if (!pipeline)
-        g_error ("Failed to parse pipeline");
-
-    rtspsrc = gst_bin_get_by_name (GST_BIN (pipeline), "r");
-    g_object_set (G_OBJECT (rtspsrc), "location", rtsp_url, NULL);
-
-    appsink = gst_bin_get_by_name (GST_BIN (pipeline), "sink");
-
-    gst_element_set_state (pipeline, GST_STATE_PLAYING);
-
-    GstSample *sample;
-    g_signal_emit_by_name (appsink, "pull-sample", &sample);
-    if (!sample){
-        GST_ERROR("Unable to pull sample from sink.");
-        return;
-    }
-
-    GstBuffer *buffer = gst_sample_get_buffer(sample);
-
-    GstMemory* memory = gst_buffer_get_all_memory(buffer);
-    GstMapInfo map_info;
-
-    if(! gst_memory_map(memory, &map_info, GST_MAP_READ)) {
-        gst_memory_unref(memory);
-        gst_sample_unref(sample);
-        GST_ERROR("Unable to read sample memory.");
-        return;
-    }
-
-    FILE *fptr;
-    fptr = fopen(outputfile,"wb");
-    if(fptr == NULL)
-    {
-        GST_ERROR("Unable open output file.");
-        return;          
-    }
-    fwrite(map_info.data, map_info.size, 1, fptr); 
-
-    fclose(fptr);
-
-    gst_element_set_state (pipeline, GST_STATE_READY);
-    gst_element_set_state (pipeline, GST_STATE_NULL);
-    gst_object_unref (pipeline);
-    GST_INFO("Done capturing file");
-}
-
 int
 main (int argc, char *argv[])
 {
@@ -204,6 +157,7 @@ main (int argc, char *argv[])
     arguments.port = 8554;
     arguments.snapshot = NULL;
     arguments.output = "output.png";
+    arguments.codec = "h265";
 
     /* Default values. */
 
@@ -216,7 +170,7 @@ main (int argc, char *argv[])
     }
 
     if(!arguments.encoder){
-        arguments.encoder = retrieve_videoencoder();
+        arguments.encoder = retrieve_videoencoder(arguments.codec);
         if(!arguments.encoder){
             GST_ERROR("No functional video encoder found.");
             return 1;
@@ -227,7 +181,7 @@ main (int argc, char *argv[])
 
      /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
     char mic_element[13], mic_device[6];
-    if(!arguments.adev){
+    if(!arguments.adev || arguments.adev[0] == '\0'){
         retrieve_audiosrc(mic_element,mic_device);
     } else {
         strcpy(mic_element,"alsasrc");
@@ -281,13 +235,27 @@ main (int argc, char *argv[])
     GST_DEBUG("Backchannel : %s",backchannel_lauch);
     factory = ext_rtsp_onvif_media_factory_new ();
 
+    //Easy way to override custom pipeline creation in favor or legacy launch string.
+    // char * launch = "videotestsrc is-live=true ! video/x-raw, format=YUY2, width=640, height=480, framerate=10/1 ! videoconvert !  v4l2h264enc extra-controls=\"encode,video_bitrate=25000000\" ! video/x-h264,profile=(string)high,level=(string)4,framerate=(fraction)10/1,width=640, height=480 ! h264parse ! rtph264pay name=pay0 pt=96";
+    // printf("launch : %s\n",launch);
+    // gst_rtsp_media_factory_set_launch (GST_RTSP_ONVIF_MEDIA_FACTORY(factory),launch);
+
+    //TODO handle format
+    if(strcmp(arguments.codec,"h265") ==0){
+        ext_rtsp_onvif_media_factory_set_codec(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),EXT_RTSP_CODEC_H265);
+    } else if(strcmp(arguments.codec,"mjpeg") == 0) {
+        ext_rtsp_onvif_media_factory_set_codec(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),EXT_RTSP_CODEC_MJPEG);
+    } else {
+        ext_rtsp_onvif_media_factory_set_codec(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),EXT_RTSP_CODEC_H264);
+    }
+
     //Set v4l2Parameter or quit if not found
     if(strcmp(arguments.vdev,"test")){
         v4l2ParameterInput desires;
         desires.desired_fps = arguments.fps;
         desires.desired_width = arguments.width;
         desires.desired_height = arguments.height;
-        desires.desired_pixelformat = V4L2_PIX_FMT_H264; //TODO Support MJPEG input
+        desires.desired_pixelformat = ext_rtsp_onvif_media_factory_get_codec(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory));
         v4l2ParameterResults * ret_val = configure_v4l2_device(arguments.vdev, desires, RAW_BAD_MATCH);
         if(ret_val == NULL){
             g_printerr ("Unable to configure v4l2 source device...\n");
@@ -297,12 +265,6 @@ main (int argc, char *argv[])
         ext_rtsp_onvif_media_factory_set_v4l2_params(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),ret_val);
     }    
 
-    //Easy way to override custom pipeline creation in favor or legacy launch string.
-    // char * launch = "videotestsrc is-live=true ! video/x-raw, format=YUY2, width=640, height=480, framerate=10/1 ! videoconvert !  v4l2h264enc extra-controls=\"encode,video_bitrate=25000000\" ! video/x-h264,profile=(string)high,level=(string)4,framerate=(fraction)10/1,width=640, height=480 ! h264parse ! rtph264pay name=pay0 pt=96";
-    // printf("launch : %s\n",launch);
-    // gst_rtsp_media_factory_set_launch (GST_RTSP_ONVIF_MEDIA_FACTORY(factory),launch);
-
-    //TODO handle format
     ext_rtsp_onvif_media_factory_set_video_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.vdev);
     ext_rtsp_onvif_media_factory_set_microphone_device(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),arguments.adev);
     ext_rtsp_onvif_media_factory_set_microphone_element(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory),mic_element);

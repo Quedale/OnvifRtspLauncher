@@ -43,112 +43,47 @@ state_changed_cb (GstBus * bus, GstMessage * msg, gpointer user_data)
 }
 
 int
-message_handler (GstBus * bus, GstMessage * message, gpointer p)
-{ 
+message_handler (GstBus * bus, GstMessage * message, gpointer p){
     VideoRetValue *ret = (VideoRetValue *) p;
-    switch(message->type){
-        case GST_MESSAGE_ANY:
-        // case GST_MESSAGE_INSTANT_RATE_REQUEST: //Doesnt exists in 1.14.4
-        // case GST_MESSAGE_DEVICE_CHANGED: //Doesnt exists in 1.14.4
-        case GST_MESSAGE_REDIRECT:
-        case GST_MESSAGE_STREAMS_SELECTED:
-        case GST_MESSAGE_STREAM_COLLECTION:
-        case GST_MESSAGE_PROPERTY_NOTIFY:
-        case GST_MESSAGE_DEVICE_REMOVED:
-        case GST_MESSAGE_DEVICE_ADDED:
-        case GST_MESSAGE_EXTENDED:
-        case GST_MESSAGE_HAVE_CONTEXT:
-        case GST_MESSAGE_NEED_CONTEXT:
-        case GST_MESSAGE_STREAM_START:
-        case GST_MESSAGE_RESET_TIME:
-        case GST_MESSAGE_TOC:
-        case GST_MESSAGE_PROGRESS:
-        case GST_MESSAGE_QOS:
-        case GST_MESSAGE_STEP_START:
-        case GST_MESSAGE_REQUEST_STATE:
-        case GST_MESSAGE_ASYNC_DONE:
-        case GST_MESSAGE_ASYNC_START:
-        case GST_MESSAGE_LATENCY:
-        case GST_MESSAGE_DURATION_CHANGED:
-        case GST_MESSAGE_SEGMENT_DONE:
-        case GST_MESSAGE_SEGMENT_START:
-        case GST_MESSAGE_ELEMENT:
-        case GST_MESSAGE_APPLICATION:
-        case GST_MESSAGE_STREAM_STATUS:
-        case GST_MESSAGE_STRUCTURE_CHANGE:
-        case GST_MESSAGE_NEW_CLOCK:
-        case GST_MESSAGE_CLOCK_LOST:
-        case GST_MESSAGE_CLOCK_PROVIDE:
-        case GST_MESSAGE_STEP_DONE:
-        case GST_MESSAGE_STATE_DIRTY:
-        case GST_MESSAGE_BUFFERING:
-        case GST_MESSAGE_TAG:
-        case GST_MESSAGE_INFO:
-        case GST_MESSAGE_UNKNOWN:
-            break;
-        case GST_MESSAGE_EOS:
-            GST_DEBUG("msg : GST_MESSAGE_EOS");
-            ret->error = 1;
-            break;
-        case GST_MESSAGE_ERROR:
-            GST_DEBUG("msg : GST_MESSAGE_ERROR");
-            ret->error = 1;
-            break;
-        case GST_MESSAGE_WARNING:
-            GST_DEBUG("msg : GST_MESSAGE_WARNING");
-            GError *gerror;
-            gchar *debug;
+    if(message->type == GST_MESSAGE_EOS || message->type == GST_MESSAGE_ERROR){
+        ret->error = 1;
+    } else if(message->type == GST_MESSAGE_WARNING) {
+        GError *gerror;
+        gchar *debug;
 
-            if (message->type == GST_MESSAGE_ERROR)
-                gst_message_parse_error (message, &gerror, &debug);
-            else
-                gst_message_parse_warning (message, &gerror, &debug);
+        if (message->type == GST_MESSAGE_ERROR)
+            gst_message_parse_error (message, &gerror, &debug);
+        else
+            gst_message_parse_warning (message, &gerror, &debug);
 
-            gst_object_default_error (GST_MESSAGE_SRC (message), gerror, debug);
-            g_error_free (gerror);
-            g_free (debug);
-            break;
-        case GST_MESSAGE_STATE_CHANGED:
-            state_changed_cb(bus,message,p);
-            break;
+        gst_object_default_error (GST_MESSAGE_SRC (message), gerror, debug);
+        g_error_free (gerror);
+        g_free (debug);
+    } else if(message->type == GST_MESSAGE_STATE_CHANGED){
+        state_changed_cb(bus,message,p);
     }
     return TRUE;
 }
 
 int  
 test_videoencoder(char * encodername){
+    GstElement * last_element;
 
     GST_DEBUG("Testing video encoder '%s'",encodername);
     //Create temporary pipeline to use AutoDetect element
     GstElement * pipeline = gst_pipeline_new ("audiotest-pipeline");
     GstElement * src = gst_element_factory_make ("videotestsrc", "src");
     GstElement * encoder = gst_element_factory_make (encodername, "encoder");
-    GstElement * capsfilter = gst_element_factory_make ("capsfilter", "enc_caps");
     GstElement * sink = gst_element_factory_make ("fakesink", "detectaudiosink");
-
-    GstCaps* filtercaps = gst_caps_from_string("video/x-h264, profile=baseline, level=(string)4");
-    g_object_set(G_OBJECT(capsfilter), "caps", filtercaps,NULL);
 
     //Initializing return value
     VideoRetValue * ret_val = malloc(sizeof(VideoRetValue));
     ret_val->error = 0;
 
-    // GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-    // guint watch_id = gst_bus_add_watch (bus, message_handler, ret_val);
-    // gst_object_unref (bus);
-
-    // GstBus *bus = gst_pipeline_get_bus (GST_PIPELINE (pipeline));
-    // gst_bus_add_signal_watch (bus);
-    // g_signal_connect (bus, "message", (GCallback) cb_message, ret_val);
-    // gst_object_unref (bus);
-
-
     //Validate elements
     if (!pipeline || \
         !src || \
-        !encoder || \
-        !capsfilter || \
-        !sink) {
+        !encoder) {
         GST_WARNING ("One of the elements wasn't created... Exiting");
         return FALSE;
     }
@@ -156,19 +91,23 @@ test_videoencoder(char * encodername){
     //Add elements to pipeline
     gst_bin_add_many (GST_BIN (pipeline), \
         src, \
-        encoder, \
-        capsfilter, \
-        sink, NULL);
+        encoder, NULL);
 
     //Link elements
     if (!gst_element_link_many (src, \
-        encoder, \
-        capsfilter, \
-        sink, NULL)){
+        encoder, NULL)){
         GST_WARNING ("Linking part (A)-2 Fail...");
         return FALSE;
     }
+    last_element = encoder;
 
+    //Add elements to pipeline
+    gst_bin_add_many (GST_BIN (pipeline), sink, NULL);
+
+    if (!gst_element_link_many (last_element, sink, NULL)){
+        GST_WARNING ("Failed to link muxer...");
+        return FALSE;
+    }
 
     //Play pipeline to construct it.
     GstStateChangeReturn ret;
@@ -209,11 +148,8 @@ test_videoencoder(char * encodername){
 }
 
 char *  
-retrieve_videoencoder(void){
-    int ret;
-    GST_DEBUG_CATEGORY_INIT (ext_vencoder_debug, "ext-venc", 0, "Extension to support v4l capabilities");
-    gst_debug_set_threshold_for_name ("ext-venc", GST_LEVEL_LOG);
-    
+retrieve_videoencoder_h264(void){
+    int ret;   
 #ifdef ENABLERPI
     ret = test_videoencoder("omxh264enc");
     if(ret){
@@ -239,6 +175,62 @@ retrieve_videoencoder(void){
     ret = test_videoencoder("x264enc");
     if(ret){
         return "x264enc";
+    }
+
+    return NULL;
+}
+
+char *  
+retrieve_videoencoder_h265(void){
+    int ret;   
+#ifdef ENABLERPI
+    ret = test_videoencoder("omxh265enc");
+    if(ret){
+        return "omxh265enc";
+    }
+#endif
+    ret = test_videoencoder("v4l2h265enc");
+    if(ret){
+        // return "v4l2h264enc extra-controls=\"controls, video_bitrate=300000, h264_level=4, h264_profile=4\" ! video/x-h264, profile=main, level=(string)5";
+         return "v4l2h265enc";
+    }
+
+    ret = test_videoencoder("nvh265enc");
+    if(ret){
+        return "nvh265enc";
+    }
+
+    ret = test_videoencoder("x265enc");
+    if(ret){
+        return "x265enc";
+    }
+
+    return NULL;
+}
+
+char *  
+retrieve_videoencoder_mjpeg(void){
+    int ret;   
+
+    ret = test_videoencoder("jpegenc");
+    if(ret){
+        return "jpegenc";
+    }
+
+    return NULL;
+}
+
+char *  
+retrieve_videoencoder(char * codec){
+    GST_DEBUG_CATEGORY_INIT (ext_vencoder_debug, "ext-venc", 0, "Extension to support v4l capabilities");
+    gst_debug_set_threshold_for_name ("ext-venc", GST_LEVEL_LOG);
+
+    if(strcmp(codec,"h264") == 0){
+        return retrieve_videoencoder_h264();
+    } else if(strcmp(codec,"h265") == 0){
+        return retrieve_videoencoder_h265();
+    } else if(strcmp(codec,"mjpeg") == 0){
+        return retrieve_videoencoder_mjpeg();
     }
 
     return NULL;

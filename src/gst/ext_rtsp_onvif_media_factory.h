@@ -23,6 +23,12 @@ typedef struct ExtRTSPOnvifMediaFactory ExtRTSPOnvifMediaFactory;
 typedef struct ExtRTSPOnvifMediaFactoryPrivate ExtRTSPOnvifMediaFactoryPrivate;
 typedef struct ExtRTSPOnvifSourceInput ExtRTSPOnvifSourceInput;
 
+typedef enum _ExtRTSPOnvifMediaCodec {
+    EXT_RTSP_CODEC_H264 = V4L2_FMT_H264,
+    EXT_RTSP_CODEC_H265 = V4L2_FMT_HEVC,
+    EXT_RTSP_CODEC_MJPEG = V4L2_FMT_MJPEG,
+} ExtRTSPOnvifMediaCodec;
+
 struct ExtRTSPOnvifMediaFactoryClass
 {
   GstRTSPOnvifMediaFactoryClass parent;
@@ -70,4 +76,9 @@ ext_rtsp_onvif_media_factory_set_video_encoder (ExtRTSPOnvifMediaFactory * facto
 void 
 ext_rtsp_onvif_media_factory_set_v4l2_params(ExtRTSPOnvifMediaFactory * factory, v4l2ParameterResults * params);
 
+void
+ext_rtsp_onvif_media_factory_set_codec (ExtRTSPOnvifMediaFactory * factory, ExtRTSPOnvifMediaCodec codec);
+
+int
+ext_rtsp_onvif_media_factory_get_codec (ExtRTSPOnvifMediaFactory * factory);
 #endif

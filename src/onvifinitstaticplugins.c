@@ -15,7 +15,7 @@ GST_PLUGIN_STATIC_DECLARE(audioconvert);
 GST_PLUGIN_STATIC_DECLARE(audioresample);
 GST_PLUGIN_STATIC_DECLARE(audiotestsrc);
 // GST_PLUGIN_STATIC_DECLARE(compositor); gstcompositor
-// GST_PLUGIN_STATIC_DECLARE(encoding); gstencoding
+// GST_PLUGIN_STATIC_DECLARE(encoding); // gstencoding
 // GST_PLUGIN_STATIC_DECLARE(gio); gstgio
 // GST_PLUGIN_STATIC_DECLARE(overlaycomposition);
 GST_PLUGIN_STATIC_DECLARE(pbtypes);
@@ -96,7 +96,7 @@ GST_PLUGIN_STATIC_DECLARE(video4linux2);
 // GST_PLUGIN_STATIC_DECLARE(cairo);
 // GST_PLUGIN_STATIC_DECLARE(gdkpixbuf); gstgdkpixbuf
 // GST_PLUGIN_STATIC_DECLARE(gtk); gstgtk
-// GST_PLUGIN_STATIC_DECLARE(jpeg); gstjpeg
+GST_PLUGIN_STATIC_DECLARE(jpeg); // gstjpeg
 // GST_PLUGIN_STATIC_DECLARE(lame); gstlame 
 // GST_PLUGIN_STATIC_DECLARE(dv); gstdv
 GST_PLUGIN_STATIC_DECLARE(png);  // gstpng
@@ -136,7 +136,7 @@ GST_PLUGIN_STATIC_DECLARE(asfmux);
 // GST_PLUGIN_STATIC_DECLARE(ivfparse); gstivfparse
 // GST_PLUGIN_STATIC_DECLARE(ivtc); gstivtc
 // GST_PLUGIN_STATIC_DECLARE(jp2kdecimator); gstjp2kdecimator
-// GST_PLUGIN_STATIC_DECLARE(jpegformat); gstjpegformat
+GST_PLUGIN_STATIC_DECLARE(jpegformat); // gstjpegformat
 // GST_PLUGIN_STATIC_DECLARE(rfbsrc); gstrfbsrc
 // GST_PLUGIN_STATIC_DECLARE(midi); gstmidi 
 // GST_PLUGIN_STATIC_DECLARE(mpegpsdemux); gstmpegpsdemux
@@ -173,7 +173,7 @@ GST_PLUGIN_STATIC_DECLARE(videoparsersbad);
 // GST_PLUGIN_STATIC_DECLARE(dvb); gstdvb
 // GST_PLUGIN_STATIC_DECLARE(fbdevsink); gstfbdevsink
 GST_PLUGIN_STATIC_DECLARE(ipcpipeline);
-// GST_PLUGIN_STATIC_DECLARE(nvcodec);
+GST_PLUGIN_STATIC_DECLARE(nvcodec);
 // GST_PLUGIN_STATIC_DECLARE(shm); gstshm
 // GST_PLUGIN_STATIC_DECLARE(tinyalsa);
 GST_PLUGIN_STATIC_DECLARE(v4l2codecs);
@@ -196,6 +196,7 @@ GST_PLUGIN_STATIC_DECLARE(asf);
 // GST_PLUGIN_STATIC_DECLARE(dvdsub); gstdvdsub
 // GST_PLUGIN_STATIC_DECLARE(realmedia); gstrealmedia
 // GST_PLUGIN_STATIC_DECLARE(x264);
+GST_PLUGIN_STATIC_DECLARE(x265);
 GST_PLUGIN_STATIC_DECLARE(pulseaudio);
 #ifdef ENABLELIBAV
 GST_PLUGIN_STATIC_DECLARE(libav);
@@ -225,7 +226,7 @@ onvif_init_static_plugins (void)
     GST_PLUGIN_STATIC_REGISTER(audioresample);
     GST_PLUGIN_STATIC_REGISTER(audiotestsrc);
     // GST_PLUGIN_STATIC_REGISTER(compositor); gstcompositor
-    // GST_PLUGIN_STATIC_REGISTER(encoding); gstencoding
+    // GST_PLUGIN_STATIC_REGISTER(encoding); // gstencoding
     // GST_PLUGIN_STATIC_REGISTER(gio); gstgio
     // GST_PLUGIN_STATIC_REGISTER(overlaycomposition);
     GST_PLUGIN_STATIC_REGISTER(pbtypes);
@@ -306,7 +307,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(cairo);
     // GST_PLUGIN_STATIC_REGISTER(gdkpixbuf); gstgdkpixbuf
     // GST_PLUGIN_STATIC_REGISTER(gtk); gstgtk
-    // GST_PLUGIN_STATIC_REGISTER(jpeg); gstjpeg
+    GST_PLUGIN_STATIC_REGISTER(jpeg); // gstjpeg
     // GST_PLUGIN_STATIC_REGISTER(lame); gstlame 
     // GST_PLUGIN_STATIC_REGISTER(dv); gstdv
     GST_PLUGIN_STATIC_REGISTER(png); // gstpng
@@ -346,7 +347,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(ivfparse); gstivfparse
     // GST_PLUGIN_STATIC_REGISTER(ivtc); gstivtc
     // GST_PLUGIN_STATIC_REGISTER(jp2kdecimator); gstjp2kdecimator
-    // GST_PLUGIN_STATIC_REGISTER(jpegformat); gstjpegformat
+    GST_PLUGIN_STATIC_REGISTER(jpegformat); // gstjpegformat
     // GST_PLUGIN_STATIC_REGISTER(rfbsrc); gstrfbsrc
     // GST_PLUGIN_STATIC_REGISTER(midi); gstmidi
     // GST_PLUGIN_STATIC_REGISTER(mpegpsdemux); gstmpegpsdemux
@@ -383,7 +384,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(dvb); gstdvb
     // GST_PLUGIN_STATIC_REGISTER(fbdevsink); gstfbdevsink
     // GST_PLUGIN_STATIC_REGISTER(ipcpipeline); gstipcpipeline
-    // GST_PLUGIN_STATIC_REGISTER(nvcodec);
+    GST_PLUGIN_STATIC_REGISTER(nvcodec);
     // GST_PLUGIN_STATIC_REGISTER(shm); gstshm
     // GST_PLUGIN_STATIC_REGISTER(tinyalsa);
     GST_PLUGIN_STATIC_REGISTER(v4l2codecs);
@@ -406,6 +407,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(dvdsub); gstdvdsub
     // GST_PLUGIN_STATIC_REGISTER(realmedia); gstrealmedia
     // GST_PLUGIN_STATIC_REGISTER(x264);
+    GST_PLUGIN_STATIC_REGISTER(x265);
     GST_PLUGIN_STATIC_REGISTER(pulseaudio);
 #ifdef ENABLELIBAV
     GST_PLUGIN_STATIC_REGISTER(libav);

@@ -9,6 +9,7 @@ typedef enum {
 
 typedef enum { 
     V4L2_FMT_H264 = V4L2_PIX_FMT_H264,
+    V4L2_FMT_HEVC = V4L2_PIX_FMT_HEVC,
     V4L2_FMT_MJPEG = V4L2_PIX_FMT_MJPEG
 } SupportedPixelFormats;
 

@@ -106,6 +106,10 @@ AC_DEFUN([SET_GST_PKG_PATH],[
     AC_SUBST(PKG_GST_PATH, '$(abs_srcdir)/subprojects/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig')
     AC_SUBST(PKG_GSTLIBAV_PATH, '$(abs_srcdir)/subprojects/gstreamer/libav_build/dist/lib/gstreamer-1.0/pkgconfig:$(abs_srcdir)/subprojects/gstreamer/libav_build/dist/lib/pkgconfig')
     AC_SUBST(GST_PLGS,m4_normalize('
+        gstjpegformat
+        gstjpeg
+        gstx265
+        gstnvcodec
         gstpulseaudio
         gstopenh264
         gstfdkaac
