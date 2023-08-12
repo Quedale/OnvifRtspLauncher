@@ -54,6 +54,30 @@ AM_COND_IF([LIBAVCOND],[
     AC_SUBST(LIBAV_CFLAGS)
 ])
 
+AC_ARG_ENABLE(libcam,
+    [AS_HELP_STRING([--enable-libcam],[Enable libcamera gstreamer plugin. @<:@default=no@:>@.])],
+    [case "${enableval}" in
+        yes) targetlibcam=yes ;;
+        no)  targetlibcam=no ;;
+        true) targetlibcam=yes ;;
+        false)  targetlibcam=no ;;
+        *) AC_MSG_ERROR([bad value ${enableval} for --enable-libcam]) ;;
+        esac],
+    [targetlibcam="no"])
+AM_CONDITIONAL([LIBCAMCOND], [test x$targetlibcam = xyes])
+AM_COND_IF([LIBCAMCOND],[
+    AC_MSG_NOTICE(Enabled libcamera support.)
+    AC_SUBST(LIBCAM_LIB, libcamera)
+    AC_SUBST(LIBCAM_STC_LIB, '-L$(abs_srcdir)/subprojects/libcamera/build/dist/lib/gstreamer-1.0 -lgstlibcamera')
+    AC_SUBST(LIBCAM_CFLAGS, -DENABLELIBCAM)
+    AC_SUBST(LIBCAM_PKG,'$(abs_srcdir)/subprojects/libcamera/build/dist/lib/pkgconfig')
+],[
+    AC_MSG_NOTICE(Disabled libcamera support.)
+    AC_SUBST(LIBCAM_LIB)
+    AC_SUBST(LIBCAM_CFLAGS)
+    AC_SUBST(LIBCAM_PKG)
+])
+
 AC_ARG_ENABLE(client,
     [AS_HELP_STRING([--enable-client],[Enable ONVIF client tool. @<:@default=no@:>@.])],
     [case "${enableval}" in
@@ -174,7 +198,7 @@ AM_COND_IF([GSTBUILDCOND],[
 ])
 
 #Declare all path for pkg-config to search
-AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH):$(PKG_FFMPEG_PATH):$(PKG_GSTLIBAV_PATH):$(PKG_PULSE_PATH):$(PKG_ALSA_PATH):$(PKG_GUDEV_PATH):$(PKG_UDEV_PATH):$(PKG_GLIB_PATH):$(PKG_V4L2_PATH)')
+AC_SUBST(PKG_FULL_PATH, '$(PKG_PATH):$(PKG_GST_PATH):$(PKG_OMX_PATH):$(PKG_FFMPEG_PATH):$(PKG_GSTLIBAV_PATH):$(PKG_PULSE_PATH):$(PKG_ALSA_PATH):$(PKG_GUDEV_PATH):$(PKG_UDEV_PATH):$(PKG_GLIB_PATH):$(PKG_V4L2_PATH):$(LIBCAM_PKG)')
 
 AC_CONFIG_FILES([
     Makefile

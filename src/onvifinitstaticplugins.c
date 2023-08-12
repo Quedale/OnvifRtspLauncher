@@ -8,6 +8,9 @@
 GST_PLUGIN_STATIC_DECLARE(coreelements);
 // GST_PLUGIN_STATIC_DECLARE(coretracers);
 // GST_PLUGIN_STATIC_DECLARE(adder); gstadder
+#ifdef ENABLELIBCAM
+GST_PLUGIN_STATIC_DECLARE(libcamera);
+#endif
 GST_PLUGIN_STATIC_DECLARE(app);
 GST_PLUGIN_STATIC_DECLARE(audioconvert);
 // GST_PLUGIN_STATIC_DECLARE(audiomixer); gstaudiomixer
@@ -219,6 +222,10 @@ onvif_init_static_plugins (void)
     GST_PLUGIN_STATIC_REGISTER(coreelements);
     // GST_PLUGIN_STATIC_REGISTER(coretracers);
     // GST_PLUGIN_STATIC_REGISTER(adder); gstadder
+#ifdef ENABLELIBCAM
+    GST_DEBUG("Enabling libcamera plugin");
+    GST_PLUGIN_STATIC_REGISTER(libcamera);
+#endif
     GST_PLUGIN_STATIC_REGISTER(app);
     GST_PLUGIN_STATIC_REGISTER(audioconvert);
     // GST_PLUGIN_STATIC_REGISTER(audiomixer); gstaudiomixer
@@ -245,6 +252,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(opus); gstopus
     // GST_PLUGIN_STATIC_REGISTER(vorbis); gstvorbis
 #ifdef ENABLECLIENT
+    GST_DEBUG("Enabling ximagesink and xvimagesink plugin");
     GST_PLUGIN_STATIC_REGISTER(ximagesink);
     GST_PLUGIN_STATIC_REGISTER(xvimagesink);
 #endif
@@ -280,6 +288,7 @@ onvif_init_static_plugins (void)
     // GST_PLUGIN_STATIC_REGISTER(multifile); gstmultifile
     // GST_PLUGIN_STATIC_REGISTER(multipart); gstmultipart
 #ifdef ENABLERPI
+    GST_DEBUG("Enabling OMX plugin");
     GST_PLUGIN_STATIC_REGISTER(omx);
     GST_PLUGIN_STATIC_REGISTER(rpicamsrc);
 #endif
@@ -410,6 +419,7 @@ onvif_init_static_plugins (void)
     GST_PLUGIN_STATIC_REGISTER(x265);
     GST_PLUGIN_STATIC_REGISTER(pulseaudio);
 #ifdef ENABLELIBAV
+    GST_DEBUG("Enabling libav plugin");
     GST_PLUGIN_STATIC_REGISTER(libav);
 #endif
     // GST_PLUGIN_STATIC_REGISTER(rtspclientsink);

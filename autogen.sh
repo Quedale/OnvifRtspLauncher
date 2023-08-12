@@ -18,6 +18,7 @@ ENABLE_RPI=0
 ENABLE_LIBAV=0
 ENABLE_CLIENT=0
 ENABLE_LATEST=0
+ENABLE_LIBCAM=0
 i=1;
 for arg in "$@"
 do
@@ -25,7 +26,9 @@ do
     ENABLE_LIBAV=1
   elif [ "$arg" == "--enable-rpi=yes" ] || [ "$arg" == "--enable-rpi=true" ]; then
     ENABLE_RPI=1
-  elif [ "$arg" == "--enable-client" ]; then
+  elif [ "$arg" == "--enable-libcam=yes" ] || [ "$arg" == "--enable-libcam=true" ]; then
+    ENABLE_LIBCAM=1
+  elif [ "$arg" == "--enable-client=yes" ] || [ "$arg" == "--enable-client=true" ]; then
     ENABLE_CLIENT=1
   elif [ "$arg" == "----enable-latest" ]; then
     ENABLE_LATEST=1
@@ -563,6 +566,27 @@ checkProg () {
   fi
 }
 
+checkCMake () {
+
+  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
+  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
+  cmake --version
+  ret=$?
+  if [ $ret != 0 ]; then
+    printf "not found cmake\n"
+    python3 -m pip install cmake
+    status=$?
+    if [ $status -ne 0 ]; then
+        printf "${RED}*****************************\n${NC}"
+        printf "${RED}*** Failed to install cmake from pip ${srcdir} ***\n${NC}"
+        printf "${RED}*****************************\n${NC}"
+        exit 1
+    fi
+  else
+    printf "cmake already found.\n"
+  fi
+}
+
 isMesonInstalled(){
   local major minor micro # reset first
   local "${@}"
@@ -784,7 +808,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     # 
     ################################################################
     PATH=$PATH:$SUBPROJECT_DIR/gettext-0.21.1/dist/bin
-    if [ -z "$(checkProg name='gettextize' args='--version' path=$PATH)" ]; then
+    if [ -z "$(checkProg name='gettextize' args='--version' path=$PATH)" ] || [ -z "$(checkProg name='autopoint' args='--version' path=$PATH)" ]; then
       echo "not found gettext"
       downloadAndExtract file="gettext-0.21.1.tar.gz" path="https://ftp.gnu.org/pub/gnu/gettext/gettext-0.21.1.tar.gz"
       if [ $FAILED -eq 1 ]; then exit 1; fi
@@ -1010,23 +1034,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     if [ $ret != 0 ]; then 
       echo "not found libpulse"
 
-      PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
-      cmake --version
-      ret=$?
-      if [ $ret != 0 ]; then
-        echo "not found cmake"
-        python3 -m pip install cmake
-        status=$?
-        if [ $status -ne 0 ]; then
-            printf "${RED}*****************************\n${NC}"
-            printf "${RED}*** Failed to install cmake from pip ${srcdir} ***\n${NC}"
-            printf "${RED}*****************************\n${NC}"
-            exit 1
-        fi
-      else
-        echo "cmake already found."
-      fi
+      checkCMake
 
       PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
       PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
@@ -1271,6 +1279,55 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
   fi
 else
     echo "Gstreamer already installed."
+fi
+
+LIBCAM_PKG=$SUBPROJECT_DIR/libcamera/build/dist/lib/pkgconfig
+PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$LIBCAM_PKG \
+pkg-config --exists --print-errors "libcamera >= 0.1.0"
+ret1=$?
+if [ $ENABLE_LIBCAM -eq 1 ] && [ $ret1 != 0 ]; then
+
+  python3 -c 'import jinja2'
+  ret=$?
+  if [ $ret != 0 ]; then
+    python3 -m pip install jinja2
+  else
+    echo "python3 jinja2 already found."
+  fi
+
+  python3 -c 'import ply'
+  ret=$?
+  if [ $ret != 0 ]; then
+    python3 -m pip install ply
+  else
+    echo "python3 ply already found."
+  fi
+
+  python3 -c 'import yaml'
+  ret=$?
+  if [ $ret != 0 ]; then
+    python3 -m pip install pyyaml
+  else
+    echo "python3 pyyaml already found."
+  fi
+  
+  checkCMake
+
+  LIBCAM_PARAMS="-Dcam=disabled"
+  LIBCAM_PARAMS="$LIBCAM_PARAMS -Ddocumentation=disabled"
+  LIBCAM_PARAMS="$LIBCAM_PARAMS -Dgstreamer=enabled"
+  LIBCAM_PARAMS="$LIBCAM_PARAMS -Dlc-compliance=disabled"
+  LIBCAM_PARAMS="$LIBCAM_PARAMS -Dtracing=disabled"
+  LIBCAM_PARAMS="$LIBCAM_PARAMS -Dv4l2=true"
+
+  pullOrClone path="https://git.libcamera.org/libcamera/libcamera.git" tag=v0.1.0
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+  #libcamera is hardcoded shared_library for some reason. Change to allow static build
+  grep -rl shared_library ./libcamera | xargs sed -i 's/shared_library/library/g'
+  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+  buildMesonProject srcdir="libcamera" prefix="$SUBPROJECT_DIR/libcamera/build/dist" mesonargs="$LIBCAM_PARAMS"
+  if [ $FAILED -eq 1 ]; then exit 1; fi
+
 fi
 
 ################################################################
