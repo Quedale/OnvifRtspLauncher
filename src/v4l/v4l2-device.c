@@ -103,8 +103,11 @@ void find_compatible_format_frame_interval(unsigned int fd, struct v4l2_frmsizee
     frmival.pixel_format = frmsize.pixel_format;
     frmival.width = width;
     frmival.height = height;
+
+    int has_interval = 0;
     while (xioctl(fd, VIDIOC_ENUM_FRAMEINTERVALS, &frmival) == 0)
     {   
+        has_interval = 1;
         unsigned int dev_fps;
         if (frmival.type == V4L2_FRMIVAL_TYPE_DISCRETE) {
             dev_fps = 1.0*frmival.discrete.denominator/frmival.discrete.numerator;
@@ -197,6 +200,10 @@ void find_compatible_format_frame_interval(unsigned int fd, struct v4l2_frmsizee
             GST_DEBUG("[%d/%d-%d]xx[%dx%d] [%f,%f] fps", desires.desired_width, desires.desired_height, desires.desired_fps, (int)width, height, 1.0*frmival.stepwise.max.denominator/frmival.stepwise.max.numerator, 1.0*frmival.stepwise.min.denominator/frmival.stepwise.min.numerator);
         frmival.index++;    
     }
+
+    if(!has_interval){
+        GST_ERROR("No interval found for format. Consider using libcamera-dev");
+    }
 }
 
 void find_compatible_format_frame_size(int fd, struct v4l2_fmtdesc fmtdesc, v4l2ParameterInput desires, v4l2MatchResults * ret){
@@ -209,6 +216,8 @@ void find_compatible_format_frame_size(int fd, struct v4l2_fmtdesc fmtdesc, v4l2
         {
             //frmsize.pixel_format
             find_compatible_format_frame_interval(fd, frmsize, frmsize.discrete.width, frmsize.discrete.height, desires, ret);
+        } else if(frmsize.type == V4L2_FRMIVAL_TYPE_CONTINUOUS){
+            GST_ERROR("Unsupported V4L2_FRMIVAL_TYPE_CONTINUOUS");
         } else if (frmsize.stepwise.max_width >= desires.desired_width && frmsize.stepwise.max_height >= desires.desired_height){
             find_compatible_format_frame_interval(fd, frmsize, desires.desired_width, desires.desired_height, desires, ret);
             //TODO handle this better!
@@ -217,6 +226,7 @@ void find_compatible_format_frame_size(int fd, struct v4l2_fmtdesc fmtdesc, v4l2
             //     for (height=frmsize.stepwise.min_height; height< frmsize.stepwise.max_height; height+=frmsize.stepwise.step_height)
             //         find_compatible_format_frame_interval(fd, frmsize, width, height, desires, ret);
         } else {
+            GST_ERROR("Unknown V4L2_FRMIVAL_TYPE %i", frmsize.type);
             //[Stepwise] Scale up resolution intentionnally not supported
         }
         frmsize.index++;

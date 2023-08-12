@@ -9,6 +9,7 @@ GST_DEBUG_CATEGORY_STATIC (ext_v4l2_debug);
 
 void v4l2MatchResult__init(v4l2MatchResults* self) {
     self->p_match = NULL;
+    self->rp_match = NULL;
     self->good_matches=malloc(0);
     self->good_matches_count=0;
     self->ok_matches=malloc(0);

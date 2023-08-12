@@ -797,6 +797,41 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
     pkg-config --exists --print-errors "gstximagesink >= $gst_version"
     ret5=$?
+
+    if [ $ret5 != 0 ]; then
+
+      PKG_XMACRO=$SUBPROJECT_DIR/macros/build/dist/pkgconfig
+      AC_XMACRO=$SUBPROJECT_DIR/macros/build/dist/aclocal
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XMACRO \
+      pkg-config --exists --print-errors "xorg-macros >= 1.19.1"
+      xvret=$?
+      if [ $xvret != 0 ]; then
+        echo "not found xorg-macros"
+        pullOrClone path="https://gitlab.freedesktop.org/xorg/util/macros.git" tag="util-macros-1.19.1"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        buildMakeProject srcdir="macros" prefix="$SUBPROJECT_DIR/macros/build/dist" configure="--datarootdir=$SUBPROJECT_DIR/macros/build/dist"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "xorg-macros already found"
+      fi
+
+      PKG_XV=$SUBPROJECT_DIR/libxv/build/dist/lib/pkgconfig
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XV:$PKG_XMACRO \
+      pkg-config --exists --print-errors "xv >= 1.0.12"
+      xvret=$?
+      if [ $xvret != 0 ]; then
+        echo "not found xv"
+        pullOrClone path="https://gitlab.freedesktop.org/xorg/lib/libxv.git" tag=libXv-1.0.12
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XV:$PKG_XMACRO \
+        ACLOCAL_PATH=$AC_XMACRO \
+        buildMakeProject srcdir="libxv" prefix="$SUBPROJECT_DIR/libxv/build/dist"
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+      else
+        echo "libxv already found"
+      fi
+    fi
+
   fi
 
   #Global check if gstreamer is already built
@@ -866,7 +901,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       ret=$?
       if [ $ret != 0 ]; then
         echo "not found libcap"
-        pullOrClone path=git://git.kernel.org/pub/scm/linux/kernel/git/morgan/libcap.git tag=libcap-2.53
+        pullOrClone path="https://git.kernel.org/pub/scm/libs/libcap/libcap.git" tag=libcap-2.53
         buildMakeProject srcdir="libcap" prefix="$SUBPROJECT_DIR/libcap/dist" installargs="DESTDIR=$SUBPROJECT_DIR/libcap/dist"
         if [ $FAILED -eq 1 ]; then exit 1; fi
       else
@@ -884,6 +919,14 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         if [ $FAILED -eq 1 ]; then exit 1; fi
       else
         echo "mount already found."
+      fi
+
+      python3 -c 'import jinja2'
+      ret=$?
+      if [ $ret != 0 ]; then
+        python3 -m pip install jinja2
+      else
+        echo "python3 jinja2 already found."
       fi
 
       PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
@@ -1141,9 +1184,9 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:videoparsers=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:onvif=enabled"
       MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:jpegformat=enabled"
-      # MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
-      # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
-      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:x265=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dugly=enabled"
+      MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-ugly:x264=enabled"
+      # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:x265=enabled"
 
       #Below is required for to workaround https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
       # This is to support v4l2h264enc element with capssetter
@@ -1164,7 +1207,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
 
       LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
       PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB  \
+      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$PKG_XV  \
       buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build/dist" mesonargs="$MESON_PARAMS" builddir="build"
       if [ $FAILED -eq 1 ]; then exit 1; fi
     else
