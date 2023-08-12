@@ -22,6 +22,7 @@
 
 #include <gst/gst.h>
 #include <gst/rtsp-server/rtsp-onvif-server.h>
+#include <gst/pbutils/gstpluginsbaseversion.h>
 
 #include <string.h>
 
@@ -145,7 +146,8 @@ main (int argc, char *argv[])
 
     GST_DEBUG_CATEGORY_INIT (ext_onvif_server_debug, "ext-onvif-server", 0, "Extended ONVIF server");
     gst_debug_set_threshold_for_name ("ext-onvif-server", GST_LEVEL_LOG);
-
+    GST_DEBUG("Using Gstreamer Version : %i.%i.%i.%i\n",GST_PLUGINS_BASE_VERSION_MAJOR,GST_PLUGINS_BASE_VERSION_MINOR,GST_PLUGINS_BASE_VERSION_MICRO,GST_PLUGINS_BASE_VERSION_NANO);
+  
     arguments.vdev = "/dev/video0";
     arguments.adev = NULL;
     arguments.width = 640;
@@ -182,6 +184,7 @@ main (int argc, char *argv[])
      /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
     char mic_element[13], mic_device[6];
     if(!arguments.adev || arguments.adev[0] == '\0'){
+        GST_WARNING("Retreiving Audio Source Device ...'");
         retrieve_audiosrc(mic_element,mic_device);
     } else {
         strcpy(mic_element,"alsasrc");
