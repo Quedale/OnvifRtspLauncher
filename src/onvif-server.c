@@ -157,7 +157,7 @@ main (int argc, char *argv[])
     arguments.port = 8554;
     arguments.snapshot = NULL;
     arguments.output = "output.png";
-    arguments.codec = "h265";
+    arguments.codec = "h264";
 
     /* Default values. */
 
