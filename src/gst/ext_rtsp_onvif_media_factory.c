@@ -313,6 +313,8 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
         if(!strcmp(factory->priv->video_encoder,"v4l2h264enc")){
             GstStructure * structure = gst_structure_new_from_string ("controls,h264_profile=4,h264_level=11,video_bitrate=25000000");
             g_object_set(G_OBJECT(venc), "extra-controls", structure,NULL);
+        } else if(!strcmp(factory->priv->video_encoder,"openh264enc")){
+            g_object_set(G_OBJECT(venc), "gop-size", 1,NULL);
         }
 
         //Adding encoder elements to bin
