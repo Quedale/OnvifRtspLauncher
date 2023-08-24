@@ -186,11 +186,11 @@ main (int argc, char *argv[])
     if(!arguments.adev || arguments.adev[0] == '\0'){
         GST_WARNING("Retreiving Audio Source Device ...'");
         retrieve_audiosrc(mic_element,mic_device);
+        arguments.adev = &mic_device[0];
     } else {
-        strcpy(mic_element,"alsasrc");
+        strcpy(mic_element,arguments.adev);
         GST_WARNING("Audio Source Device override '%s'",arguments.adev);
     }
-    arguments.adev = &mic_device[0];
 
     /* Retrieve appropriate audio source. (pulse vs alsa) and try list of alsa recording devices */
     char audiosink[35];
