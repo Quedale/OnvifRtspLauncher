@@ -322,9 +322,9 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
         } else if(!strcmp(factory->priv->video_encoder,"openh264enc")){
             g_object_set(G_OBJECT(venc), "gop-size", 1,NULL);
         } else if(!strcmp(factory->priv->video_encoder,"x264enc")){
-            g_object_set(G_OBJECT(venc), "speed-preset", "ultrafast",NULL);
+            g_object_set(G_OBJECT(venc), "speed-preset", 1,NULL);
             g_object_set(G_OBJECT(venc), "b-adapt", FALSE,NULL);
-            g_object_set(G_OBJECT(venc), "tune", "zerolatency",NULL);
+            g_object_set(G_OBJECT(venc), "tune", 4,NULL);
         }
 
         //Adding encoder elements to bin
