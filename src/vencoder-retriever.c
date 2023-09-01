@@ -210,7 +210,11 @@ retrieve_videoencoder_h265(void){
 
 char *  
 retrieve_videoencoder_mjpeg(void){
-    int ret;   
+    int ret;
+    ret = test_videoencoder("v4l2jpegenc");
+    if(ret){
+        return "v4l2jpegenc";
+    }
 
     ret = test_videoencoder("jpegenc");
     if(ret){

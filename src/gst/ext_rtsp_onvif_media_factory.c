@@ -52,6 +52,35 @@ int is_suported_capture_format(int format){
     }
 }
 
+GstElement * priv_add_link (char * element, char * name, GstElement * link_to, GstElement * bin){
+    GstElement * elem = gst_element_factory_make (element, name);
+
+    //Validate elements
+    if (!elem) {
+        GST_ERROR ("Element %s [%s] wasn't created... Exiting\n", element, name);
+        return NULL;
+    }
+    
+    //Adding elements to bin
+    gst_bin_add_many (GST_BIN (bin), elem, NULL);
+
+    //Linking elements
+    if (link_to && !gst_element_link_many (link_to, elem, NULL)){
+        GST_ERROR ("Linking %s [%s] part (A)-2 Fail...", element, name);
+        return NULL;
+    }
+    
+    return elem;
+}
+
+GstElement * priv_add_caps (GstCaps * caps, GstElement * link_to, GstElement * bin){
+    link_to = priv_add_link("capsfilter", NULL,link_to,bin);
+    if(!link_to) return NULL;
+
+    g_object_set(G_OBJECT(link_to), "caps", caps,NULL);
+    return link_to;
+}
+
 void 
 ext_rtsp_onvif_media_factory_set_v4l2_params(ExtRTSPOnvifMediaFactory * factory, v4l2ParameterResults * params){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
@@ -140,7 +169,6 @@ ext_rtsp_onvif_media_factory_get_codec (ExtRTSPOnvifMediaFactory *
     return ret;
 }
 
-
 void 
 ext_rtsp_onvif_media_factory_set_microphone_element (ExtRTSPOnvifMediaFactory * factory, const gchar * element){
     g_return_if_fail (IS_EXT_RTSP_ONVIF_MEDIA_FACTORY (factory));
@@ -203,26 +231,6 @@ ext_rtsp_onvif_media_factory_init (ExtRTSPOnvifMediaFactory * factory)
     g_mutex_init (&factory->priv->lock);
 }
 
-static GstElement * 
-priv_ext_rtsp_onvif_media_factory_add_videoconvert_element (ExtRTSPOnvifMediaFactory * factory, 
-        GstElement * ret, GstElement * last_element){
-    GstElement * videoconvert = gst_element_factory_make ("videoconvert", NULL);
-    if (!videoconvert) {
-        g_printerr ("Videoconvert elements wasn't created... Exiting\n");
-        return NULL;
-    }
-
-    //Adding videoconvert elements to bin
-    gst_bin_add_many (GST_BIN (ret), videoconvert, NULL);
-
-    //Linking videoconvert elements
-    if (!gst_element_link_many (last_element, videoconvert, NULL)){
-        GST_ERROR ("Linking videoconvert part (A)-2 Fail...");
-        return NULL;
-    }
-    return videoconvert;
-}
-
 /*
     Workaround element to support v4l2h264enc hardware encoding
     https://gitlab.freedesktop.org/gstreamer/gstreamer/-/issues/1056
@@ -235,16 +243,13 @@ priv_ext_rtsp_onvif_media_factory_add_capssetter_element (ExtRTSPOnvifMediaFacto
         unsigned int dev_width,
         unsigned int dev_height){
 
-    if(strcmp(factory->priv->video_encoder,"v4l2h264enc")){
+    if(strncmp("v4l2", factory->priv->video_encoder,4)){
         return last_element;
     }
 
     GST_DEBUG("Creating capssetter with fps[%d/%d] resolution[%d/%d]",dev_denominator,dev_numerator,dev_width,dev_height);
-    GstElement * capssetter = gst_element_factory_make ("capssetter", NULL);
-    if (!capssetter) {
-        g_printerr ("capssetter elements wasn't created... Exiting\n");
-        return NULL;
-    }
+    last_element = priv_add_link("capssetter", NULL,last_element,ret);
+    if(!last_element) return NULL;
 
     GstCaps *setter_filtercaps = gst_caps_new_simple ("video/x-raw",
         "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
@@ -254,18 +259,10 @@ priv_ext_rtsp_onvif_media_factory_add_capssetter_element (ExtRTSPOnvifMediaFacto
         "colorimetry", G_TYPE_STRING, "bt709", //TODO Find compatible colorimetry before fallback to default
         "interlace-mode", G_TYPE_STRING, "progressive",
         NULL);
-    g_object_set(G_OBJECT(capssetter), "caps", setter_filtercaps,NULL);
-    g_object_set(G_OBJECT(capssetter), "replace", TRUE,NULL);
+    g_object_set(G_OBJECT(last_element), "caps", setter_filtercaps,NULL);
+    g_object_set(G_OBJECT(last_element), "replace", TRUE,NULL);
     
-    //Adding capssetter elements to bin
-    gst_bin_add_many (GST_BIN (ret), capssetter, NULL);
-
-    //Linking capssetter elements
-    if (!gst_element_link_many (last_element, capssetter, NULL)){
-        GST_ERROR ("Linking capssetter part (A)-2 Fail...");
-        return NULL;
-    }
-    return capssetter;
+    return last_element;
 }
 
 static GstElement * 
@@ -274,21 +271,28 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
         GstElement * last_element){
 
     if(factory->priv->video_encoder){
-        last_element = priv_ext_rtsp_onvif_media_factory_add_videoconvert_element(factory,ret, last_element);
-        if(last_element == NULL){
-            return NULL;
-        }
+        last_element = priv_add_link("videoconvert", NULL,last_element,ret);
+        if(!last_element) return NULL;
 
         last_element = priv_ext_rtsp_onvif_media_factory_add_capssetter_element (factory, ret, last_element,factory->priv->fps,1,factory->priv->width,factory->priv->height); 
-        if(last_element == NULL){
-            return NULL;
-        }
+        if(last_element == NULL) return NULL;
 
-        GstElement * venc = gst_element_factory_make (factory->priv->video_encoder, "venc");
-        GstElement * venc_capsfilter = gst_element_factory_make ("capsfilter", "venc_caps");
-        if (!venc || !venc_capsfilter) {
-            g_printerr ("One of the v4l2h264enc elements wasn't created... Exiting\n");
-            return NULL;
+        last_element = priv_add_link(factory->priv->video_encoder, "venc",last_element,ret);
+        if(!last_element) return NULL;
+
+        //v4l2h264enc specific
+        if(!strncmp(factory->priv->video_encoder,"v4l2",4)){
+            //245760
+            //25000000 - 5.1
+            //The bitrate has to be supported by the encoder profile/level
+            GstStructure * structure = gst_structure_new_from_string ("controls,video_bitrate=2500000,video_bitrate_mode=1,repeat_sequence_header=1,video_gop_size=1");
+            g_object_set(G_OBJECT(last_element), "extra-controls", structure,NULL);
+        } else if(!strcmp(factory->priv->video_encoder,"openh264enc")){
+            g_object_set(G_OBJECT(last_element), "gop-size", 1,NULL);
+        } else if(!strcmp(factory->priv->video_encoder,"x264enc")){
+            g_object_set(G_OBJECT(last_element), "speed-preset", 1,NULL);
+            g_object_set(G_OBJECT(last_element), "b-adapt", FALSE,NULL);
+            g_object_set(G_OBJECT(last_element), "tune", 4,NULL);
         }
 
         // Setting caps on source and encoder
@@ -301,7 +305,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
             case EXT_RTSP_CODEC_H264:
                 venc_filtercaps = gst_caps_new_simple ("video/x-h264",
                     // "profile", G_TYPE_STRING, "high",
-                    "level", G_TYPE_STRING, "5.1",
+                    "level", G_TYPE_STRING, "4",
                     NULL);
                 break;
             case EXT_RTSP_CODEC_MJPEG:
@@ -312,32 +316,12 @@ priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements (ExtRTSPOnvifMediaF
             default:
                 break;
         }
-        g_object_set(G_OBJECT(venc_capsfilter), "caps", venc_filtercaps,NULL);
-        
-        //v4l2h264enc specific
-        if(!strcmp(factory->priv->video_encoder,"v4l2h264enc")){
-            //The bitrate has to be supported by the encoder profile/level
-            GstStructure * structure = gst_structure_new_from_string ("controls,video_bitrate=25000000,video_bitrate_mode=1");
-            g_object_set(G_OBJECT(venc), "extra-controls", structure,NULL);
-        } else if(!strcmp(factory->priv->video_encoder,"openh264enc")){
-            g_object_set(G_OBJECT(venc), "gop-size", 1,NULL);
-        } else if(!strcmp(factory->priv->video_encoder,"x264enc")){
-            g_object_set(G_OBJECT(venc), "speed-preset", 1,NULL);
-            g_object_set(G_OBJECT(venc), "b-adapt", FALSE,NULL);
-            g_object_set(G_OBJECT(venc), "tune", 4,NULL);
-        }
 
-        //Adding encoder elements to bin
-        gst_bin_add_many (GST_BIN (ret), venc, venc_capsfilter, NULL);
-
-        //Linking encoder elements
-        if (!gst_element_link_many (last_element, venc, venc_capsfilter, NULL)){
-            GST_ERROR ("Linking encoder part (A)-2 Fail...");
-            return NULL;
-        }
+        last_element = priv_add_caps(venc_filtercaps,last_element,ret);
+        if(!last_element) return NULL;
         
         //Set as last element for additional linking
-        return venc_capsfilter;
+        return last_element;
     } else {
         GST_ERROR("Video encoder required, but none defined.");
         return NULL;
@@ -350,79 +334,38 @@ priv_ext_rtsp_onvif_media_factory_add_videoscale_element (ExtRTSPOnvifMediaFacto
         //Scale down required
         //TODO instead crop from center
         GST_WARNING("Scale down from '%i/%i' to '%i/%i'",dev_width,dev_height,factory->priv->width,factory->priv->height);
-        GstElement * videoscale = gst_element_factory_make ("videoscale", "vscale");
-
-        if (!videoscale) {
-            g_printerr ("videoscale wasn't created... Exiting\n");
-            return NULL;
-        }
-
-        gst_bin_add_many (GST_BIN (ret), videoscale, NULL);
-
-        if (!gst_element_link_many (last_element, videoscale, NULL)){
-            GST_ERROR ("Linking videoscale Fail...");
-            return NULL;
-        }
-        last_element = videoscale;
+        last_element = priv_add_link("videoscale","vscale",last_element, ret);
     }
     return last_element;
 }
-
 
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_videorate_element (ExtRTSPOnvifMediaFactory * factory, GstElement * ret, GstElement * last_element, v4l2ParameterResults * input){
     if(input != NULL && factory->priv->fps != (gint)1.0*(input->device_denominator/input->device_numerator)){
         GST_WARNING("Droping framerate from '%i' to '%i'",(int)1.0*(input->device_denominator/input->device_numerator), factory->priv->fps);
-        GstElement * videorate = gst_element_factory_make ("videorate", "vrate");
-        g_object_set(G_OBJECT(videorate), "max-rate", factory->priv->fps,NULL);
-        g_object_set(G_OBJECT(videorate), "drop-only", TRUE, NULL);
-
-        if (!videorate) {
-            g_printerr ("videorate wasn't created... Exiting\n");
-            return NULL;
-        }
-
-        gst_bin_add_many (GST_BIN (ret), videorate, NULL);
-
-        if (!gst_element_link_many (last_element, videorate, NULL)){
-            GST_ERROR ("Linking videorate Fail...");
-            return NULL;
-        }
-        last_element = videorate;
+        last_element = priv_add_link("videorate","vrate", last_element, ret);
+        g_object_set(G_OBJECT(last_element), "max-rate", factory->priv->fps,NULL);
+        g_object_set(G_OBJECT(last_element), "drop-only", TRUE, NULL);
     }
     return last_element;
 }
 
 static GstElement * 
 priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret, GstElement * last_element, unsigned int dev_pixelformat, unsigned int dev_denominator, unsigned int dev_numerator, unsigned int dev_width, unsigned int dev_height){
-    GstElement * src;
     //TODO handle alternative sources like picamsrc
     if(!strcmp(factory->priv->video_device,"test")){
-        src = gst_element_factory_make ("videotestsrc", "src");
-        //Validate source elements
-        if (!src) {
-            g_printerr ("the source  wasn't created... Exiting\n");
-            return NULL;
-        }
-        g_object_set(G_OBJECT(src), "is-live", TRUE,NULL);
+        last_element = priv_add_link("videotestsrc","vidsrc",NULL,ret);
+        if(!last_element) return NULL;
+        g_object_set(G_OBJECT(last_element), "is-live", TRUE,NULL);
     } else {
-        src = gst_element_factory_make ("v4l2src", "src");
-        //Validate source elements
-        if (!src) {
-            g_printerr ("the source  wasn't created... Exiting\n");
-            return NULL;
-        }
-        g_object_set(G_OBJECT(src), "device", factory->priv->video_device,NULL);
+        last_element = priv_add_link("v4l2src","vidsrc",NULL,ret);
+        if(!last_element) return NULL;
+        g_object_set(G_OBJECT(last_element), "device", factory->priv->video_device,NULL);
     }
-
-    //Adding source elements to bin
-    gst_bin_add_many (GST_BIN (ret), src, NULL);
-
-    GstElement * src_capsfilter = gst_element_factory_make ("capsfilter", "src_caps");
-    //Validate source elements
-    if (!src_capsfilter) {
-        g_printerr ("Capture caps filter element wasn't created... Exiting\n");
-        return NULL;
+    
+    if(dev_pixelformat == V4L2_FMT_H264){
+        GstStructure * structure = gst_structure_new_from_string ("controls,video_bitrate=25000000");
+        g_object_set(G_OBJECT(last_element), "extra-controls", structure,NULL);
     }
 
     GST_DEBUG("Setting Capture FPS [%d/%d]",dev_denominator,dev_numerator);
@@ -433,31 +376,22 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
         case V4L2_FMT_H264:
             GST_DEBUG("Setting H264 Capture Caps");
             src_filtercaps = gst_caps_new_simple("video/x-h264",
-                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
                 "profile", G_TYPE_STRING, "high",
                 "level", G_TYPE_STRING, "4",
-                "width", G_TYPE_INT, dev_width,
-                "height", G_TYPE_INT, dev_height,
                 NULL);
-            GstStructure * structure = gst_structure_new_from_string ("controls,video_bitrate=25000000");
-            g_object_set(G_OBJECT(src), "extra-controls", structure,NULL);
             break;
         case V4L2_FMT_YUYV:
             GST_DEBUG("Setting Raw YUYV Capture Caps");
             src_filtercaps = gst_caps_new_simple ("video/x-raw",
-                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
                 "format", G_TYPE_STRING, "YUY2",
-                "width", G_TYPE_INT, dev_width,
-                "height", G_TYPE_INT, dev_height,
                 NULL);
             break;
         case V4L2_FMT_MJPEG: 
             GST_DEBUG("Setting MJPEG Capture Caps");
             src_filtercaps = gst_caps_new_simple ("image/jpeg",
                 "mpegversion", G_TYPE_INT, 4, //Can be 2...
-                "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
-                "width", G_TYPE_INT, dev_width,
-                "height", G_TYPE_INT, dev_height,
+                "profile", G_TYPE_STRING, "high",
+                "level", G_TYPE_STRING, "4",
                 NULL);
             break;
         default:
@@ -467,19 +401,15 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
 
     }
 
-    g_object_set(G_OBJECT(src_capsfilter), "caps", src_filtercaps,NULL);
+    //Common caps properties
+    gst_caps_set_simple(src_filtercaps,
+        "width", G_TYPE_INT, dev_width,
+        "height", G_TYPE_INT, dev_height,
+        "framerate", GST_TYPE_FRACTION, dev_denominator, dev_numerator,
+    NULL);
+    last_element = priv_add_caps(src_filtercaps,last_element,ret);
 
-
-    //Adding source elements to bin
-    gst_bin_add_many (GST_BIN (ret), src_capsfilter, NULL);
-
-    //Linking source elements
-    if (!gst_element_link_many (src, src_capsfilter, NULL)){
-        GST_ERROR ("Linking source caps part (A)-2 Fail...");
-        return NULL;
-    }
-
-    return src_capsfilter;
+    return last_element;
 }
 
 static GstElement * 
@@ -509,84 +439,52 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
 
     //Create Capture elements
     last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, pixel_format,dev_denominator,dev_numerator,dev_width,dev_height);
-    if(last_element == NULL){
-        return NULL;
-    }
+    if(last_element == NULL) return NULL;
 
     //Adjust device framerate to desired stream framerate
     last_element = priv_ext_rtsp_onvif_media_factory_add_videorate_element(factory,ret,last_element, input);
-    if(last_element == NULL){
-        return NULL;
-    }
+    if(last_element == NULL) return NULL;
 
     //Adjust device resolution to desired stream resolution
     last_element = priv_ext_rtsp_onvif_media_factory_add_videoscale_element(factory,ret,last_element, dev_width, dev_height);
-    if(last_element == NULL){
-        return NULL;
-    }
+    if(last_element == NULL) return NULL;
 
-    GstElement * vq = gst_element_factory_make ("queue", "vqueue");
+    //Good measure video queue
+    last_element = priv_add_link("queue","vqueue",last_element,ret);
+    if(!last_element) return NULL;
 
-    //Validate source elements
-    if (!vq) {
-        GST_ERROR ("A queue element wasn't created... Exiting\n");
-        return NULL;
-    }
-    
-    //Adding source elements to bin
-    gst_bin_add_many (GST_BIN (ret), vq, NULL);
-
-    //Linking source elements
-    if (!gst_element_link_many (last_element, vq, NULL)){
-        GST_ERROR ("Linking source part (A)-2 Fail...");
-        return NULL;
-    }
-    last_element = vq;
-
-    //Check if device format is compatible with stream output
+    //Check if native feed requires encoding
     if(!is_suported_output_format(pixel_format)){
         GST_WARNING("Using video encoder!!!");
         last_element = priv_ext_rtsp_onvif_media_factory_add_video_encoder_elements(factory,ret, last_element);
-        if(last_element == NULL){
-            return NULL;
-        }
+        if(last_element == NULL) return NULL;
     } else {
         GST_WARNING("Using native video stream!!!");
     }
 
-    GstElement * hparse, *hpay;
-
     //Create rtp payload sink
+    char * parser = NULL;
+    char * payloader = NULL;
     switch(factory->priv->codec){
         case EXT_RTSP_CODEC_H265:
-            hparse = gst_element_factory_make ("h265parse", "h265parse");
-            hpay = gst_element_factory_make ("rtph265pay", "pay0");
+            parser = "h265parse";
+            payloader = "rtph265pay";
             break;
         case EXT_RTSP_CODEC_MJPEG:
-            hparse = gst_element_factory_make ("jpegparse", "jpegparse");
-            hpay = gst_element_factory_make ("rtpjpegpay", "pay0");
+            parser = "jpegparse";
+            payloader = "rtpjpegpay";
             break;
         case EXT_RTSP_CODEC_H264:
         default:
-            hparse = gst_element_factory_make ("h264parse", "h264parse");
-            hpay = gst_element_factory_make ("rtph264pay", "pay0");
+            parser = "h264parse";
+            payloader = "rtph264pay";
             break;
     }
 
-    g_object_set(G_OBJECT(hpay), "pt", 96,NULL);
-
-    if (!hparse || !hpay) {
-        g_printerr ("One of the rtppayload elements wasn't created... Exiting\n");
-        return NULL;
-    }
-
-    gst_bin_add_many (GST_BIN (ret), hparse, hpay, NULL);
-
-    //Linking encoder elements
-    if (!gst_element_link_many (last_element, hparse, hpay, NULL)){
-        GST_ERROR ("Linking pay part (A)-2 Fail...");
-        return NULL;
-    }
+    last_element = priv_add_link(parser, parser,last_element,ret);
+    if(!last_element) return NULL;
+    last_element = priv_add_link(payloader,"pay0",last_element,ret);
+    if(!last_element) return NULL;
 
     return ret;
 }
@@ -595,78 +493,46 @@ static GstElement *
 priv_ext_rtsp_onvif_media_factory_add_audio_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret){
     GstElement * last_element;
     if(!strcmp(factory->priv->microphone_device,"test")){
-        last_element = gst_element_factory_make ("audiotestsrc", "audio_src");
-        if (!last_element) {
-            g_printerr ("One of the audio source elements wasn't created... Exiting\n");
-            return NULL;
-        }
-        gst_bin_add_many (GST_BIN (ret), last_element, NULL);
+        last_element = priv_add_link("audiotestsrc","audio_src",NULL,ret);
+        if(!last_element) return NULL;
     } else {
         if(strlen(factory->priv->microphone_element) < 1){
             GST_WARNING("No microphone source detected.");
             return ret;
         }
-        GstElement * audio_src = gst_element_factory_make (factory->priv->microphone_element, "audio_src");
+        last_element = priv_add_link(factory->priv->microphone_element,"audio_src",NULL,ret);
+        if(!last_element) return NULL;
+
         if(factory->priv->microphone_device 
             && !strcmp(factory->priv->microphone_element,"alsasrc") 
             && strlen(factory->priv->microphone_device) > 1){
             GST_DEBUG("Setting alsa mic to '%s'",factory->priv->microphone_device);
-            g_object_set(G_OBJECT(audio_src), "device", factory->priv->microphone_device,NULL);
-        }
-        GstElement * audio_resampler = gst_element_factory_make ("audioresample", "audio_resampler");
-        last_element = gst_element_factory_make ("audioconvert", NULL);
-
-        if (!audio_src || !audio_resampler || !last_element) {
-            g_printerr ("One of the audio source elements wasn't created... Exiting\n");
-            return NULL;
-        }
-        gst_bin_add_many (GST_BIN (ret), audio_src, audio_resampler, last_element, NULL);
-
-        //Linking audio elements
-        if (!gst_element_link_many (audio_src, audio_resampler, last_element, NULL)){
-            GST_ERROR ("Linking audio source part (A)-2 Fail...");
-            return NULL;
+            g_object_set(G_OBJECT(last_element), "device", factory->priv->microphone_device,NULL);
         }
 
+        last_element = priv_add_link("audioresample","audio_resampler",last_element,ret);
+        if(!last_element) return NULL;
+
+        last_element = priv_add_link("audioconvert","audioconvert",last_element,ret);
+        if(!last_element) return NULL;
     }
 
-    // //This is important in case the sink can't keep up to alsa or pulse push events
-    // GstElement * audio_queue = gst_element_factory_make ("queue", "audio_queue");
-    // if (!audio_queue) {
-    //     g_printerr ("The audio queue element wasn't created... Exiting\n");
-    //     return NULL;
-    // }
-    // gst_bin_add_many (GST_BIN (ret), audio_queue, NULL);
-    // //Linking audio elements
-    // if (!gst_element_link_many (last_element, audio_queue, NULL)){
-    //     GST_ERROR ("Linking audio queue part (A)-2 Fail...");
-    //     return NULL;
-    // }
-    // last_element  = audio_queue;
+    last_element = priv_add_link("queue","aqueue",last_element,ret);
+    if(!last_element) return NULL;
 
     //TODO support ONVIF input config for audio format/channels/rate
-    GstElement * audio_enc = gst_element_factory_make ("mulawenc", "audio_enc");
-    GstElement * audio_out_capsfilter = gst_element_factory_make ("capsfilter", "audio_out_caps");
-
     GstCaps * mic_out_filtercaps = gst_caps_new_simple ("audio/x-mulaw",
                 "channels", G_TYPE_INT, 1,
                 "rate", G_TYPE_INT, 8000,
                 NULL);
-    g_object_set(G_OBJECT(audio_out_capsfilter), "caps", mic_out_filtercaps,NULL);
+    last_element = priv_add_link("mulawenc","audio_enc",last_element,ret);
+    if(!last_element) return NULL;
 
-    GstElement * audio_pay = gst_element_factory_make ("rtppcmupay", "pay1");
+    last_element = priv_add_caps(mic_out_filtercaps,last_element,ret);
+    if(!last_element) return NULL;
 
-    if (!audio_enc || !audio_pay) {
-        g_printerr ("One of the audio encoder/pay elements wasn't created... Exiting\n");
-        return NULL;
-    }
-    gst_bin_add_many (GST_BIN (ret), audio_enc, audio_out_capsfilter, audio_pay, NULL);
-
-    //Linking audio elements
-    if (!gst_element_link_many (last_element, audio_enc, audio_out_capsfilter, audio_pay, NULL)){
-        GST_ERROR ("Linking audio encoder/pay part (A)-2 Fail...");
-        return NULL;
-    }
+    last_element = priv_add_link("rtppcmupay","pay1",last_element,ret);
+    if(!last_element) return NULL;
 
     return ret;
 }
