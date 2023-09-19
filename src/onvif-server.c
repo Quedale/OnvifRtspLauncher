@@ -57,6 +57,8 @@ static struct argp_option options[] = {
     { "snapshot", 's', "RTSPURL", 0, "Overrides all other input and takes a snapshot of the provided rtsp url."},
     { "output", 'o', "PNGFILE", 0, "Overrides all other input and set the snapshot output. (Default: output.png)"},
     { "codec", 'c', "CODEC", 0, "Rtsp Output Codec used.(h264 or h265. Default h264)"},
+    { "user", 'u', "USER", 0, "User account allowed to access it.(Default: anonymous)"},
+    { "password", 'z', "PASSWORD", 0, "Password user to authenticate user.(Default: anonymous)"},
     { 0 } 
 };
 
@@ -74,6 +76,8 @@ struct arguments {
     char *mount;
     int port;
     char * codec;
+    char * user;
+    char * pass;
 };
 
 //main arguments processing function
@@ -91,6 +95,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 's': arguments->snapshot = arg; break;
     case 'o': arguments->output = arg; break;
     case 'c': arguments->codec = arg; break;
+    case 'u': arguments->user = arg; break;
+    case 'z': arguments->pass = arg; break;
     case ARGP_KEY_ARG: return 0;
     default: return ARGP_ERR_UNKNOWN;
     }   
@@ -160,6 +166,8 @@ main (int argc, char *argv[])
     arguments.snapshot = NULL;
     arguments.output = "output.png";
     arguments.codec = "h264";
+    arguments.user = NULL;
+    arguments.pass = NULL;
 
     /* Default values. */
 
@@ -237,6 +245,28 @@ main (int argc, char *argv[])
     
     GST_DEBUG("Backchannel : %s",backchannel_lauch);
     factory = ext_rtsp_onvif_media_factory_new ();
+
+    if(arguments.user && arguments.pass && strcmp(arguments.user,"") && strcmp(arguments.pass,"")){
+        GST_DEBUG("Setting authentication for user : %s", arguments.user);
+        gst_rtsp_media_factory_add_role (factory, "admin",
+            GST_RTSP_PERM_MEDIA_FACTORY_ACCESS, G_TYPE_BOOLEAN, TRUE,
+            GST_RTSP_PERM_MEDIA_FACTORY_CONSTRUCT, G_TYPE_BOOLEAN, TRUE, NULL);
+
+        /* make a new authentication manager */
+        GstRTSPAuth * auth = gst_rtsp_auth_new ();
+        gst_rtsp_auth_set_supported_methods (auth, GST_RTSP_AUTH_DIGEST);
+
+        /* make admin token */
+        GstRTSPToken * token = gst_rtsp_token_new (GST_RTSP_TOKEN_MEDIA_FACTORY_ROLE, G_TYPE_STRING, "admin", NULL);
+        gst_rtsp_auth_add_digest (auth, arguments.user, arguments.pass, token);
+        gst_rtsp_token_unref (token);
+
+        /* set as the server authentication manager */
+        gst_rtsp_server_set_auth (server, auth);
+        g_object_unref (auth);
+    } else {
+        GST_WARNING("RTSP Stream is accessible anonymously!!");
+    }
 
     //Easy way to override custom pipeline creation in favor or legacy launch string.
     // char * launch = "videotestsrc is-live=true ! video/x-raw, format=YUY2, width=640, height=480, framerate=10/1 ! videoconvert !  v4l2h264enc extra-controls=\"encode,video_bitrate=25000000\" ! video/x-h264,profile=(string)high,level=(string)4,framerate=(fraction)10/1,width=640, height=480 ! h264parse ! rtph264pay name=pay0 pt=96";
