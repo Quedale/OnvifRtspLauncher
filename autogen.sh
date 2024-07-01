@@ -568,8 +568,6 @@ checkProg () {
 
 checkCMake () {
 
-  PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
   cmake --version
   ret=$?
   if [ $ret != 0 ]; then
@@ -703,20 +701,38 @@ else
   echo "Ninja $(ninja --version) already installed."
 fi
 
+FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
+PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
+PKG_UDEV=$SUBPROJECT_DIR/systemd-255/build/dist/lib/pkgconfig
+PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
+PKG_XMACRO=$SUBPROJECT_DIR/macros/build/dist/pkgconfig
+GST_OMX_PKG_PATH=$SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/pkgconfig
+PKG_XV=$SUBPROJECT_DIR/libxv/build/dist/lib/pkgconfig
+PKG_LIBCAP=$SUBPROJECT_DIR/libcap/dist/lib64/pkgconfig
+PKG_UTIL_LINUX=$SUBPROJECT_DIR/util-linux/dist/lib/pkgconfig
+PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
+PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
+PKG_LIBV4L2=$SUBPROJECT_DIR/v4l-utils/dist/lib/pkgconfig
+PKG_ALSA=$SUBPROJECT_DIR/alsa-lib/build/dist/lib/pkgconfig
+LIBCAM_PKG=$SUBPROJECT_DIR/libcamera/build/dist/lib/pkgconfig
+GST_LIBAV_PKG_PATH=$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/pkgconfig
+GST_PKG_PATH=:$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE:$LIBCAM_PKG:$PKG_ALSA:$PKG_LIBV4L2:$PKG_LIBSNDFILE:$PKG_UTIL_LINUX:$FFMPEG_PKG:$PKG_LIBCAP:$PKG_XV:$PKG_GLIB:$PKG_UDEV:$PKG_GUDEV:$GST_OMX_PKG_PATH:$GST_LIBAV_PKG_PATH:$GST_PKG_PATH:$PKG_XMACRO
+
+
 ################################################################
 # 
 #    Build v4l2-utils dependency
 #   sudo apt install libv4l-dev (tested 1.16.3)
 # 
 ################################################################
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$SUBPROJECT_DIR/v4l-utils/dist/lib/pkgconfig \
 pkg-config --exists --print-errors "libv4l2 >= 1.16.3"
 ret=$?
 if [ $ret != 0 ]; then
   echo "not found libv4l2"
-  pullOrClone path=https://git.linuxtv.org/v4l-utils.git tag=v4l-utils-1.22.1
+  pullOrClone path=https://git.linuxtv.org/v4l-utils.git tag=stable-1.26
   ACLOCAL_PATH=$SUBPROJECT_DIR/gettext-0.21.1/dist/share/aclocal \
-  buildMakeProject srcdir="v4l-utils" prefix="$SUBPROJECT_DIR/v4l-utils/dist" configure="--enable-static --disable-shared --with-udevdir=$SUBPROJECT_DIR/v4l-utils/dist/udev"
+  buildMesonProject srcdir="v4l-utils" prefix="$SUBPROJECT_DIR/v4l-utils/dist" mesonargs="-Dsystemdsystemunitdir=$SUBPROJECT_DIR/v4l-utils/dist/systemd -Dudevdir=$SUBPROJECT_DIR/v4l-utils/dist/udev"
   if [ $FAILED -eq 1 ]; then exit 1; fi
 else
   echo "libv4l2 already found."
@@ -728,8 +744,6 @@ fi
 #   sudo apt install libasound2-dev (tested 1.1.8)
 # 
 ################################################################
-PKG_ALSA=$SUBPROJECT_DIR/alsa-lib/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_ALSA \
 pkg-config --exists --print-errors "alsa >= 1.1.8"
 ret=$?
 if [ $ret != 0 ]; then
@@ -748,17 +762,12 @@ fi
 #    Build Gstreamer dependency
 # 
 ################################################################
-FFMPEG_PKG=$SUBPROJECT_DIR/FFmpeg/dist/lib/pkgconfig
-PKG_GLIB=$SUBPROJECT_DIR/glib-2.74.1/dist/lib/pkgconfig
-GST_OMX_PKG_PATH=$SUBPROJECT_DIR/gstreamer/build_omx/dist/lib/gstreamer-1.0/pkgconfig
-GST_LIBAV_PKG_PATH=$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/libav_build/dist/lib/gstreamer-1.0/pkgconfig
-GST_PKG_PATH=:$SUBPROJECT_DIR/gstreamer/build/dist/lib/pkgconfig:$SUBPROJECT_DIR/gstreamer/build/dist/lib/gstreamer-1.0/pkgconfig
 ret1=0
 ret2=0
 ret3=0
 ret4=0
 ret5=0
-gst_version=1.22.4
+gst_version=1.24.5
 
 pkg-config --exists --print-errors "gstreamer-1.0 >= 1.21.90"
 ret1=$?
@@ -776,33 +785,27 @@ fi
 #Check to see if gstreamer exist on the system
 if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ENABLE_LATEST != 0 ]; then
 
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
   pkg-config --exists --print-errors "gstreamer-1.0 >= $gst_version"
   ret1=$?
-  PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
   pkg-config --exists --print-errors "gstreamer-rtsp-server-1.0 >= $gst_version"
   ret2=$?
   if [ $ENABLE_RPI -eq 1 ]; then
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_OMX_PKG_PATH:$PKG_GLIB \
     pkg-config --exists --print-errors "gstrpicamsrc >= $gst_version"
     ret3=$?
   fi
   if [ $ENABLE_LIBAV -eq 1 ]; then
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_LIBAV_PKG_PATH:$PKG_GLIB:$FFMPEG_PKG \
     pkg-config --exists  --print-errors "gstlibav >= $gst_version"
     ret4=$?
   fi
   #Check if the feature was previously built
   if [ $ENABLE_CLIENT -eq 1 ]; then
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB \
     pkg-config --exists --print-errors "gstximagesink >= $gst_version"
     ret5=$?
 
     if [ $ret5 != 0 ]; then
 
-      PKG_XMACRO=$SUBPROJECT_DIR/macros/build/dist/pkgconfig
+
       AC_XMACRO=$SUBPROJECT_DIR/macros/build/dist/aclocal
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XMACRO \
       pkg-config --exists --print-errors "xorg-macros >= 1.19.1"
       xvret=$?
       if [ $xvret != 0 ]; then
@@ -815,15 +818,12 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "xorg-macros already found"
       fi
 
-      PKG_XV=$SUBPROJECT_DIR/libxv/build/dist/lib/pkgconfig
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XV:$PKG_XMACRO \
       pkg-config --exists --print-errors "xv >= 1.0.12"
       xvret=$?
       if [ $xvret != 0 ]; then
         echo "not found xv"
         pullOrClone path="https://gitlab.freedesktop.org/xorg/lib/libxv.git" tag=libXv-1.0.12
         if [ $FAILED -eq 1 ]; then exit 1; fi
-        PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$GST_PKG_PATH:$PKG_GLIB:$PKG_XV:$PKG_XMACRO \
         ACLOCAL_PATH=$AC_XMACRO \
         buildMakeProject srcdir="libxv" prefix="$SUBPROJECT_DIR/libxv/build/dist"
         if [ $FAILED -eq 1 ]; then exit 1; fi
@@ -859,7 +859,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     #   sudo apt-get install libglib2.0-dev (gstreamer minimum 2.64.0)
     # 
     ################################################################
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GLIB \
     pkg-config --exists --print-errors "glib-2.0 >= 2.64.0"
     ret=$?
     if [ $ret != 0 ]; then 
@@ -878,9 +877,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     #   sudo apt install libgudev-1.0-dev (tested 232)
     # 
     ################################################################
-    PKG_UDEV=$SUBPROJECT_DIR/systemd-252/dist/usr/local/lib/pkgconfig
-    PKG_GUDEV=$SUBPROJECT_DIR/libgudev/build/dist/lib/pkgconfig
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_UDEV:$PKG_GLIB \
     pkg-config --exists --print-errors "gudev-1.0 >= 232"
     ret=$?
     if [ $ret != 0 ]; then 
@@ -895,8 +891,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "gperf already found."
       fi
 
-      PKG_LIBCAP=$SUBPROJECT_DIR/libcap/dist/lib64/pkgconfig
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP \
       pkg-config --exists --print-errors "libcap >= 2.53" # Or check for sys/capability.h
       ret=$?
       if [ $ret != 0 ]; then
@@ -908,8 +902,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "libcap already found."
       fi
 
-      PKG_UTIL_LINUX=$SUBPROJECT_DIR/util-linux/dist/lib/pkgconfig
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UTIL_LINUX \
       pkg-config --exists --print-errors "mount >= 2.38.0"
       ret=$?
       if [ $ret != 0 ]; then
@@ -929,8 +921,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         echo "python3 jinja2 already found."
       fi
 
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV \
-      pkg-config --exists --print-errors "libudev >= 252" # Or check for sys/capability.h
+      pkg-config --exists --print-errors "libudev >= 255" # Or check for sys/capability.h
       ret=$?
       if [ $ret != 0 ]; then
         echo "not found libudev"
@@ -1033,19 +1024,21 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dpcre2=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dglib=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Ddbus=false"
-        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dgnu-efi=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dtests=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Durlify=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Danalyze=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbpf-framework=false"
         SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dkernel-install=false"
-        downloadAndExtract file="v252.tar.gz" path="https://github.com/systemd/systemd/archive/refs/tags/v252.tar.gz"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dsysvinit-path=$SUBPROJECT_DIR/systemd-255/build/dist/init.d"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dbashcompletiondir=$SUBPROJECT_DIR/systemd-255/build/dist/bash-completion"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dcreate-log-dirs=false"
+        SYSD_MESON_ARGS="$SYSD_MESON_ARGS -Dlocalstatedir=$SUBPROJECT_DIR/systemd-255/build/dist/localstate"
+        downloadAndExtract file="v255.tar.gz" path="https://github.com/systemd/systemd/archive/refs/tags/v255.tar.gz"
         if [ $FAILED -eq 1 ]; then exit 1; fi
         PATH=$PATH:$SUBPROJECT_DIR/gperf-3.1/dist/bin \
-        PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBCAP:$PKG_UTIL_LINUX \
         C_INCLUDE_PATH=$SUBPROJECT_DIR/libcap/dist/usr/include \
         LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64 \
-        buildMesonProject srcdir="systemd-252" prefix="/usr/local" mesonargs="$SYSD_MESON_ARGS" destdir="$SUBPROJECT_DIR/systemd-252/dist"
+        buildMesonProject srcdir="systemd-255" prefix="$SUBPROJECT_DIR/systemd-255/build/dist" mesonargs="$SYSD_MESON_ARGS"
         if [ $FAILED -eq 1 ]; then exit 1; fi
 
       else
@@ -1053,10 +1046,9 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       fi
 
       pullOrClone path=https://gitlab.gnome.org/GNOME/libgudev.git tag=237
-      C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-252/dist/usr/local/include \
-      LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+      C_INCLUDE_PATH=$SUBPROJECT_DIR/systemd-255/dist/usr/local/include \
+      LIBRARY_PATH=$SUBPROJECT_DIR/libcap/dist/lib64:$SUBPROJECT_DIR/systemd-255/dist/usr/lib \
       PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin \
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_UDEV:$PKG_GLIB \
       buildMesonProject srcdir="libgudev" prefix="$SUBPROJECT_DIR/libgudev/build/dist" mesonargs="-Dvapi=disabled -Dtests=disabled -Dintrospection=disabled"
       if [ $FAILED -eq 1 ]; then exit 1; fi
 
@@ -1070,8 +1062,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
     #   sudo apt install libpulse-dev (tested 12.2)
     # 
     ################################################################
-    PKG_PULSE=$SUBPROJECT_DIR/pulseaudio/build/dist/lib/pkgconfig
-    PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_PULSE \
     pkg-config --exists --print-errors "libpulse >= 12.2"
     ret=$?
     if [ $ret != 0 ]; then 
@@ -1079,8 +1069,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
 
       checkCMake
 
-      PKG_LIBSNDFILE=$SUBPROJECT_DIR/libsndfile/dist/lib/pkgconfig
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
       pkg-config --exists --print-errors "sndfile >= 1.2.0"
       ret=$?
       if [ $ret != 0 ]; then
@@ -1107,8 +1095,6 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dbashcompletiondir=no"
       PULSE_MESON_ARGS="$PULSE_MESON_ARGS -Dzshcompletiondir=no"
       pullOrClone path="https://gitlab.freedesktop.org/pulseaudio/pulseaudio.git" tag=v16.1
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_LIBSNDFILE \
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_CHECK \
       buildMesonProject srcdir="pulseaudio" prefix="$SUBPROJECT_DIR/pulseaudio/build/dist" mesonargs="$PULSE_MESON_ARGS"
       if [ $FAILED -eq 1 ]; then exit 1; fi
 
@@ -1205,9 +1191,8 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       # echo "revision=v2.0.0" >> subprojects/tinyalsa.wrap
       # MESON_PARAMS="$MESON_PARAMS -Dgst-plugins-bad:tinyalsa=enabled"
 
-      LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-252/dist/usr/lib \
+      LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/systemd-255/dist/usr/lib \
       PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$PKG_XV  \
       buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build/dist" mesonargs="$MESON_PARAMS" builddir="build"
       if [ $FAILED -eq 1 ]; then exit 1; fi
     else
@@ -1218,25 +1203,18 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       echo "LIBAV Feature enabled..."
 
       FFMPEG_BIN=$SUBPROJECT_DIR/FFmpeg/dist/bin
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libavcodec >= 58.20.100"
       ret1=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libavfilter >= 7.40.101"
       ret2=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libavformat >= 58.20.100"
       ret3=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libavutil >= 56.22.100"
       ret4=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libpostproc >= 55.3.100"
       ret5=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libswresample >= 3.3.100"
       ret6=$?
-      PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$FFMPEG_PKG \
       pkg-config --exists --print-errors "libswscale >= 5.3.100"
       ret7=$?
       if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $ret5 != 0 ] || [ $ret6 != 0 ] || [ $ret7 != 0 ]; then
@@ -1275,7 +1253,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
       LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
       PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH  \
       buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/libav_build/dist" mesonargs="$MESON_PARAMS" builddir="libav_build"
       if [ $FAILED -eq 1 ]; then exit 1; fi
 
@@ -1301,7 +1279,7 @@ if [ $ret1 != 0 ] || [ $ret2 != 0 ] || [ $ret3 != 0 ] || [ $ret4 != 0 ] || [ $EN
       LIBRARY_PATH=$LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
       LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$SUBPROJECT_DIR/gstreamer/build/dist/lib:$SUBPROJECT_DIR/FFmpeg/dist/lib \
       PATH=$PATH:$SUBPROJECT_DIR/glib-2.74.1/dist/bin:$NASM_BIN \
-      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
+      PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH  \
       buildMesonProject srcdir="gstreamer" prefix="$SUBPROJECT_DIR/gstreamer/build_omx/dist" mesonargs="$MESON_PARAMS" builddir="build_omx" defaultlib=both
       if [ $FAILED -eq 1 ]; then exit 1; fi
 
@@ -1324,8 +1302,6 @@ else
     echo "Gstreamer already installed."
 fi
 
-LIBCAM_PKG=$SUBPROJECT_DIR/libcamera/build/dist/lib/pkgconfig
-PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$LIBCAM_PKG \
 pkg-config --exists --print-errors "libcamera >= 0.1.0"
 ret1=$?
 if [ $ENABLE_LIBCAM -eq 1 ] && [ $ret1 != 0 ]; then
@@ -1367,7 +1343,6 @@ if [ $ENABLE_LIBCAM -eq 1 ] && [ $ret1 != 0 ]; then
   if [ $FAILED -eq 1 ]; then exit 1; fi
   #libcamera is hardcoded shared_library for some reason. Change to allow static build
   grep -rl shared_library ./libcamera | xargs sed -i 's/shared_library/library/g'
-  PKG_CONFIG_PATH=$GST_PKG_PATH:$PKG_CONFIG_PATH:$PKG_GUDEV:$PKG_ALSA:$PKG_PULSE:$PKG_UDEV:$PKG_GLIB:$FFMPEG_PKG  \
   buildMesonProject srcdir="libcamera" prefix="$SUBPROJECT_DIR/libcamera/build/dist" mesonargs="$LIBCAM_PARAMS"
   if [ $FAILED -eq 1 ]; then exit 1; fi
 
