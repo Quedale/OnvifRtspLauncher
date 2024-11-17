@@ -289,7 +289,7 @@ main (int argc, char *argv[])
         desires.desired_width = arguments.width;
         desires.desired_height = arguments.height;
         desires.desired_pixelformat = ext_rtsp_onvif_media_factory_get_codec(EXT_RTSP_ONVIF_MEDIA_FACTORY(factory));
-        v4l2ParameterResults * ret_val = configure_v4l2_device(arguments.vdev, desires, RAW_BAD_MATCH);
+        v4l2ParameterResults * ret_val = configure_v4l2_device(arguments.vdev, desires, TRANS_BAD_MATCH);
         if(ret_val == NULL){
             g_printerr ("Unable to configure v4l2 source device...\n");
             return 1;

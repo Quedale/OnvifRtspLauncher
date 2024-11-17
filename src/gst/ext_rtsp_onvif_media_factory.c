@@ -351,7 +351,7 @@ priv_ext_rtsp_onvif_media_factory_add_videorate_element (ExtRTSPOnvifMediaFactor
 }
 
 static GstElement * 
-priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret, GstElement * last_element, unsigned int dev_pixelformat, unsigned int dev_denominator, unsigned int dev_numerator, unsigned int dev_width, unsigned int dev_height){
+priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory * factory, GstElement * ret, GstElement * last_element, unsigned int dev_pixelformat, unsigned int dev_denominator, unsigned int dev_numerator, unsigned int dev_width, unsigned int dev_height, ExtRTSPOnvifMediaCodec codec){
     //TODO handle alternative sources like picamsrc
     if(!strcmp(factory->priv->video_device,"test")){
         last_element = priv_add_link("videotestsrc","vidsrc",NULL,ret);
@@ -409,6 +409,22 @@ priv_ext_rtsp_onvif_media_factory_add_source_elements (ExtRTSPOnvifMediaFactory 
     NULL);
     last_element = priv_add_caps(src_filtercaps,last_element,ret);
 
+    if((dev_pixelformat == V4L2_FMT_H264 ||
+        dev_pixelformat == V4L2_FMT_H264 || 
+        dev_pixelformat == V4L2_FMT_H264) && dev_pixelformat != codec){
+        GST_WARNING("Using Transcoding!!! This isn't good");
+        switch(dev_pixelformat){
+            case V4L2_FMT_H264:
+                break;
+            case V4L2_FMT_HEVC:
+                break;
+            case V4L2_FMT_MJPEG:
+                last_element = priv_add_link("jpegdec", "vdec",last_element,ret);
+                last_element = priv_add_link("ffmpegcolorspace", "mpegcolorspace",last_element,ret);
+                break;
+        }
+    }
+
     return last_element;
 }
 
@@ -438,7 +454,7 @@ priv_ext_rtsp_onvif_media_factory_add_video_elements (ExtRTSPOnvifMediaFactory *
     }
 
     //Create Capture elements
-    last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, pixel_format,dev_denominator,dev_numerator,dev_width,dev_height);
+    last_element = priv_ext_rtsp_onvif_media_factory_add_source_elements(factory,ret, last_element, pixel_format,dev_denominator,dev_numerator,dev_width,dev_height, factory->priv->codec);
     if(last_element == NULL) return NULL;
 
     //Adjust device framerate to desired stream framerate

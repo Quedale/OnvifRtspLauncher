@@ -22,7 +22,11 @@ typedef enum {
     RAW_GOOD_MATCH      = 6,
     RAW_OK_MATCH        = 7,
     RAW_BAD_MATCH       = 8,
-    ANY_MATCH           = 5
+    TRANS_PERFECT_MATCH   = 9,
+    TRANS_GOOD_MATCH      = 10,
+    TRANS_OK_MATCH        = 11,
+    TRANS_BAD_MATCH       = 12,
+    ANY_MATCH           = 13
 } MatchScope;
 
 typedef struct {

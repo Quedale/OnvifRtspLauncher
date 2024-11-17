@@ -13,7 +13,11 @@ typedef enum {
     RAW_PERFECT =    5, // Raw capture - perfect match
     RAW_GOOD =       6, // Raw capture - Dropping frames required
     RAW_OK =         7, // Raw capture - Scaling down resolution required
-    RAW_BAD =        8  // Raw capture - Drop Frame and Scale down required
+    RAW_BAD =        8, // Raw capture - Drop Frame and Scale down required
+    TRANS_PERFECT =  9, // Transcode capture - perfect match
+    TRANS_GOOD =    10, // Transcode capture - good match
+    TRANS_OK =      11, // Transcode capture - good match
+    TRANS_BAD =     12 // Transcode capture - good match
 } MatchTypes;
 
 typedef struct {
@@ -32,6 +36,9 @@ typedef struct {
   int raw_good_matches_count;
   int raw_ok_matches_count;
   int raw_bad_matches_count;
+  int tr_good_matches_count;
+  int tr_ok_matches_count;
+  int tr_bad_matches_count;
   v4l2MatchResult * p_match; //perfect match
   v4l2MatchResult ** good_matches;
   v4l2MatchResult ** ok_matches;
@@ -40,6 +47,10 @@ typedef struct {
   v4l2MatchResult ** raw_good_matches;
   v4l2MatchResult ** raw_ok_matches;
   v4l2MatchResult ** raw_bad_matches;
+  v4l2MatchResult * tr_match; //perfect match
+  v4l2MatchResult ** tr_good_matches;
+  v4l2MatchResult ** tr_ok_matches;
+  v4l2MatchResult ** tr_bad_matches;
 } v4l2MatchResults;
 
 v4l2MatchResults* v4l2MatchResult__create(); 

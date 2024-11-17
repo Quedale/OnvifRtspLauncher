@@ -22,6 +22,12 @@ void v4l2MatchResult__init(v4l2MatchResults* self) {
     self->raw_ok_matches_count=0;
     self->raw_bad_matches=malloc(0);
     self->raw_bad_matches_count=0;
+    self->tr_good_matches=malloc(0);
+    self->tr_good_matches_count=0;
+    self->tr_ok_matches=malloc(0);
+    self->tr_ok_matches_count=0;
+    self->tr_bad_matches=malloc(0);
+    self->tr_bad_matches_count=0;
 }
 
 v4l2MatchResults* v4l2MatchResult__create() {
@@ -90,6 +96,19 @@ void v4l2MatchResult__insert_element(v4l2MatchResults* self, v4l2MatchResult * r
             self->raw_bad_matches = v4l2MatchResult__insert_element_of_type(self,self->raw_bad_matches,record,self->raw_bad_matches_count, index);
             self->raw_bad_matches_count++;
             break;
+        case TRANS_GOOD:
+            self->tr_good_matches = v4l2MatchResult__insert_element_of_type(self,self->tr_good_matches,record,self->tr_good_matches_count, index);
+            self->tr_good_matches_count++;
+            break;
+        case TRANS_OK: 
+            self->tr_ok_matches = v4l2MatchResult__insert_element_of_type(self,self->tr_ok_matches,record,self->tr_ok_matches_count, index);
+            self->tr_ok_matches_count++;
+            break;
+        case TRANS_BAD:
+            self->tr_bad_matches = v4l2MatchResult__insert_element_of_type(self,self->tr_bad_matches,record,self->tr_bad_matches_count, index);
+            self->tr_bad_matches_count++;
+            break;
+        case TRANS_PERFECT:
         case RAW_PERFECT:
         case PERFECT:
         default:
@@ -149,11 +168,44 @@ void v4l2MatchResult__clear(v4l2MatchResults* self, MatchTypes type){
         case RAW_PERFECT:
             free(self->rp_match);
             break;
+        case TRANS_GOOD:
+            for(i=0; i < self->tr_good_matches_count; i++){
+                free(self->tr_good_matches[i]);
+            }
+            self->tr_good_matches_count = 0;
+            self->tr_good_matches = realloc(self->tr_good_matches,0);
+            break;
+        case TRANS_OK:
+            for(i=0; i < self->tr_ok_matches_count; i++){
+                free(self->tr_ok_matches[i]);
+            }
+            self->tr_ok_matches_count = 0;
+            self->tr_ok_matches = realloc(self->tr_ok_matches,0);
+            break;
+        case TRANS_BAD:
+            for(i=0; i < self->tr_bad_matches_count; i++){
+                free(self->tr_bad_matches[i]);
+            }
+            self->tr_bad_matches_count = 0;
+            self->tr_bad_matches = realloc(self->tr_bad_matches,0);
+            break;
+        case TRANS_PERFECT:
+            free(self->tr_match);
+            break;
         default:
             v4l2MatchResult__clear(self,PERFECT);
             v4l2MatchResult__clear(self,GOOD);
             v4l2MatchResult__clear(self,OK);
             v4l2MatchResult__clear(self,BAD);
+            v4l2MatchResult__clear(self,RAW_PERFECT);
+            v4l2MatchResult__clear(self,RAW_GOOD);
+            v4l2MatchResult__clear(self,RAW_OK);
+            v4l2MatchResult__clear(self,RAW_BAD);
+            v4l2MatchResult__clear(self,TRANS_PERFECT);
+            v4l2MatchResult__clear(self,TRANS_GOOD);
+            v4l2MatchResult__clear(self,TRANS_OK);
+            v4l2MatchResult__clear(self,TRANS_BAD);
+
             break;
     };
 }
